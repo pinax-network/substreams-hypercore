@@ -28,8 +28,6 @@ CREATE TABLE IF NOT EXISTS state_c_deposits_withdrawals (
     gross_volume            SimpleAggregateFunction(sum, Float64) COMMENT 'total volume (deposits + withdrawals) in the window',
 
     -- unique counts --
-    uniq_depositor          AggregateFunction(uniq, String) COMMENT 'unique depositor addresses in the window',
-    uniq_withdrawer         AggregateFunction(uniq, String) COMMENT 'unique withdrawer addresses in the window',
     uniq_user               AggregateFunction(uniq, String) COMMENT 'unique user addresses (depositors + withdrawers) in the window',
 
     -- indexes --
@@ -86,8 +84,6 @@ SELECT
     sum(amount_f64)                                         AS gross_volume,
 
     -- unique counts --
-    uniqState(d.user)                                       AS uniq_depositor,
-    uniqState('')                                           AS uniq_withdrawer,
     uniqState(d.user)                                       AS uniq_user
 
 FROM c_deposits d
@@ -138,8 +134,6 @@ SELECT
     sum(amount_f64)                                         AS gross_volume,
 
     -- unique counts --
-    uniqState('')                                           AS uniq_depositor,
-    uniqState(w.user)                                       AS uniq_withdrawer,
     uniqState(w.user)                                       AS uniq_user
 
 FROM c_withdrawals w

@@ -29,8 +29,6 @@ SELECT
     sum(gross_volume) AS gross_volume,
 
     -- unique counts --
-    uniqMerge(uniq_depositor) AS uniq_depositor,
-    uniqMerge(uniq_withdrawer) AS uniq_withdrawer,
     uniqMerge(uniq_user) AS uniq_user
 
 FROM state_c_deposits_withdrawals
