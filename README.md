@@ -435,10 +435,12 @@ Present when the fill is part of a liquidation:
 The ClickHouse schema is organized in layers:
 
 ### Layer 0: Foundation
+
 - `blocks` - Block metadata
 - `TEMPLATE_EVENT` - Base template for all event tables
 
 ### Layer 1+: Event Tables
+
 Each event type has its own table inheriting from `TEMPLATE_EVENT`, with projections for efficient querying by common fields like `user`, `validator`, `coin`, etc.
 
 ### Common Event Fields
