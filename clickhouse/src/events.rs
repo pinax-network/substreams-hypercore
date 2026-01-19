@@ -6,7 +6,7 @@ use substreams::pb::substreams::Clock;
 use substreams::Hex;
 use substreams_database_change::tables::Tables;
 
-use crate::{event_key, set_clock};
+use crate::{event_key, set_event_metadata};
 
 pub fn process_events(tables: &mut Tables, clock: &Clock, block: &Block) {
     for (event_index, event) in block.events.iter().enumerate() {
@@ -42,15 +42,6 @@ fn process_event(tables: &mut Tables, clock: &Clock, event_index: usize, event: 
     }
 }
 
-fn set_event_metadata(clock: &Clock, event_index: usize, event: &Event, row: &mut substreams_database_change::tables::Row) {
-    set_clock(clock, row);
-    row.set("event_index", event_index as u32);
-    row.set("event_hash", format!("0x{}", Hex::encode(&event.hash)));
-    if let Some(time) = &event.time {
-        row.set("event_time", time.seconds);
-    }
-}
-
 fn process_delegation(
     tables: &mut Tables,
     clock: &Clock,
@@ -61,7 +52,7 @@ fn process_delegation(
     let key = event_key(clock, event_index, &event.hash);
     let row = tables.create_row("delegations", key);
 
-    set_event_metadata(clock, event_index, event, row);
+    set_event_metadata(clock, event_index, &event.hash, event.time.as_ref(), row);
 
     row.set("user", format!("0x{}", Hex::encode(&delegation.user)));
     row.set("validator", format!("0x{}", Hex::encode(&delegation.validator)));
@@ -79,7 +70,7 @@ fn process_c_deposit(
     let key = event_key(clock, event_index, &event.hash);
     let row = tables.create_row("c_deposits", key);
 
-    set_event_metadata(clock, event_index, event, row);
+    set_event_metadata(clock, event_index, &event.hash, event.time.as_ref(), row);
 
     row.set("user", format!("0x{}", Hex::encode(&c_deposit.user)));
     row.set("amount", &c_deposit.amount);
@@ -95,7 +86,7 @@ fn process_c_withdrawal(
     let key = event_key(clock, event_index, &event.hash);
     let row = tables.create_row("c_withdrawals", key);
 
-    set_event_metadata(clock, event_index, event, row);
+    set_event_metadata(clock, event_index, &event.hash, event.time.as_ref(), row);
 
     row.set("user", format!("0x{}", Hex::encode(&c_withdrawal.user)));
     row.set("amount", &c_withdrawal.amount);
@@ -125,7 +116,7 @@ fn process_funding_delta(
     let key = event_key(clock, event_index, &event.hash);
     let row = tables.create_row("funding_deltas", key);
 
-    set_event_metadata(clock, event_index, event, row);
+    set_event_metadata(clock, event_index, &event.hash, event.time.as_ref(), row);
 
     row.set("user", format!("0x{}", Hex::encode(&delta.user)));
     row.set("coin", &delta.coin);
@@ -157,7 +148,7 @@ fn process_validator_reward(
     let key = event_key(clock, event_index, &event.hash);
     let row = tables.create_row("validator_rewards", key);
 
-    set_event_metadata(clock, event_index, event, row);
+    set_event_metadata(clock, event_index, &event.hash, event.time.as_ref(), row);
 
     row.set("validator", format!("0x{}", Hex::encode(&reward.validator)));
     row.set("reward", &reward.reward);
