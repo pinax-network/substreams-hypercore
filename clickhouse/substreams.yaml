@@ -1,23 +1,15 @@
 specVersion: v0.1.0
 package:
-  name: clickhouse_polymarket
-  version: v0.1.2
-  url: https://github.com/pinax-network/substreams-polymarket
-  description: ClickHouse sink for Polymarket on Polygon
+  name: clickhouse_hypercore
+  version: v0.1.0
+  url: https://github.com/pinax-network/substreams-hypercore
+  description: ClickHouse sink for Hypercore
   image: ../image.png
 
 imports:
   # SQL Sink Substreams
-  database_changes: ./packages/substreams-database-change-v2.0.0.spkg
-  sql: ./packages/substreams-sink-sql-protodefs-v1.0.7.spkg
-
-  # Events
-  ctf_exchange: ./packages/ctf-exchange-v0.1.0.spkg
-  uma_ctf_adapter: ./packages/uma-ctf-adapter-v0.1.0.spkg
-  negrisk_adapter: ./packages/negrisk-adapter-v0.1.0.spkg
-  conditional_tokens: ./packages/conditional-tokens-v0.1.0.spkg
-  safe_proxy_factory: ./packages/safe-proxy-factory-v0.1.0.spkg
-  fee_module: ./packages/fee-module-v0.1.0.spkg
+  database_changes: ../spkg/substreams-database-change-v2.0.0.spkg
+  sql: ../spkg/substreams-sink-sql-protodefs-v1.0.7.spkg
 
 binaries:
   default:
@@ -29,12 +21,7 @@ modules:
     kind: map
     inputs:
       - source: sf.substreams.v1.Clock
-      - map: ctf_exchange:map_events
-      - map: uma_ctf_adapter:map_events
-      - map: negrisk_adapter:map_events
-      - map: conditional_tokens:map_events
-      - map: safe_proxy_factory:map_events
-      - map: fee_module:map_events
+      - source: pinax.hypercore.v1.Block
     output:
       type: proto:sf.substreams.sink.database.v1.DatabaseChanges
 
