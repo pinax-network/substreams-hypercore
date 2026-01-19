@@ -42,11 +42,6 @@ ALTER TABLE fills
 -- Only contains fills that have liquidation data
 CREATE TABLE IF NOT EXISTS fills_liquidation AS fills;
 ALTER TABLE fills_liquidation
-    -- liquidation fields (required) --
-    ADD COLUMN IF NOT EXISTS liquidated_user             String,
-    ADD COLUMN IF NOT EXISTS mark_px                     Float64,
-    ADD COLUMN IF NOT EXISTS liquidation_method          String,
-
     -- PROJECTIONS for analytics (minute & count) --
     ADD PROJECTION IF NOT EXISTS prj_coin_count ( SELECT coin, count(), min(block_num), max(block_num), min(timestamp), max(timestamp), min(minute), max(minute) GROUP BY coin ),
     ADD PROJECTION IF NOT EXISTS prj_user_count ( SELECT user, count(), min(block_num), max(block_num), min(timestamp), max(timestamp), min(minute), max(minute) GROUP BY user ),
