@@ -1,6 +1,6 @@
 ENDPOINT ?= hypercore.substreams.pinax.network:443
 START_BLOCK ?= 866536721
-STOP_BLOCK ?= -1
+STOP_BLOCK ?= +100
 PARALLEL_JOBS ?= 500
 
 .PHONY: build
