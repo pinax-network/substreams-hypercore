@@ -17,8 +17,8 @@ SELECT
 
     -- OHLC --
     argMinMerge(open) AS open,
-    quantileDeterministicMerge(0.95)(high) AS high,
-    quantileDeterministicMerge(0.05)(low) AS low,
+    quantileDeterministicMerge(0.95)(quantile) AS high,
+    quantileDeterministicMerge(0.05)(quantile) AS low,
     argMaxMerge(close) AS close,
 
     -- volume --

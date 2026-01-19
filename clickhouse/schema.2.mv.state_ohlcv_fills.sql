@@ -16,8 +16,7 @@ CREATE TABLE IF NOT EXISTS state_ohlcv_fills (
 
     -- OHLC price aggregates --
     open                    AggregateFunction(argMin, Float64, UInt64) COMMENT 'opening price in the window',
-    high                    AggregateFunction(quantileDeterministic, Float64, UInt64) COMMENT 'high price (95th percentile) in the window',
-    low                     AggregateFunction(quantileDeterministic, Float64, UInt64) COMMENT 'low price (5th percentile) in the window',
+    quantile                AggregateFunction(quantileDeterministic, Float64, UInt64) COMMENT 'quantile price in the window (use 0.95 for high, 0.05 for low)',
     close                   AggregateFunction(argMax, Float64, UInt64) COMMENT 'closing price in the window',
 
     -- volume --
@@ -84,8 +83,7 @@ SELECT
 
     -- OHLC --
     argMinState(price_f64, f.block_num)                     AS open,
-    quantileDeterministicState(price_f64, f.block_num)      AS high,
-    quantileDeterministicState(price_f64, f.block_num)      AS low,
+    quantileDeterministicState(price_f64, f.block_num)      AS quantile,
     argMaxState(price_f64, f.block_num)                     AS close,
 
     -- volume --
