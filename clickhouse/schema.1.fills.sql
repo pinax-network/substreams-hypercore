@@ -42,6 +42,9 @@ ALTER TABLE fills
 -- Only contains fills that have liquidation data
 CREATE TABLE IF NOT EXISTS fills_liquidation AS fills;
 ALTER TABLE fills_liquidation
+    -- Modify liquidation field types --
+    MODIFY COLUMN IF EXISTS mark_px Float64 COMMENT 'Mark price for liquidation',
+
     -- PROJECTIONS for analytics (minute & count) --
     ADD PROJECTION IF NOT EXISTS prj_coin_count ( SELECT coin, count(), min(block_num), max(block_num), min(timestamp), max(timestamp), min(minute), max(minute) GROUP BY coin ),
     ADD PROJECTION IF NOT EXISTS prj_user_count ( SELECT user, count(), min(block_num), max(block_num), min(timestamp), max(timestamp), min(minute), max(minute) GROUP BY user ),
