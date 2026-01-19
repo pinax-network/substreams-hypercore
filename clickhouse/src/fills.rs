@@ -20,9 +20,7 @@ fn process_fill(tables: &mut Tables, clock: &Clock, index: usize, fill: &Fill) {
     // Event metadata
     row.set("event_index", index as u32);
     row.set("event_hash", format!("0x{}", Hex::encode(&fill.hash)));
-    if let Some(time) = &fill.time {
-        row.set("event_time", time.seconds);
-    }
+    row.set("event_time", fill.time.as_ref().map(|t| t.seconds).unwrap_or(0));
 
     // Fill-specific fields
     row.set("user", format!("0x{}", Hex::encode(&fill.user)));
@@ -30,9 +28,7 @@ fn process_fill(tables: &mut Tables, clock: &Clock, index: usize, fill: &Fill) {
     row.set("price", &fill.price);
     row.set("size", &fill.size);
     row.set("side", fill_side_to_string(fill.side));
-    if let Some(time) = &fill.time {
-        row.set("fill_time", time.seconds);
-    }
+    row.set("fill_time", fill.time.as_ref().map(|t| t.seconds).unwrap_or(0));
     row.set("start_position", &fill.start_position);
     row.set("direction", trading_direction_to_string(fill.direction));
     row.set("closed_pnl", &fill.closed_pnl);
@@ -44,11 +40,15 @@ fn process_fill(tables: &mut Tables, clock: &Clock, index: usize, fill: &Fill) {
     row.set("twap_id", fill.twap_id);
     row.set("client_order_id", format!("0x{}", Hex::encode(&fill.client_order_id)));
 
-    // Liquidation fields (optional)
+    // Liquidation fields (always set, empty when not present)
     if let Some(liq) = &fill.liquidation {
         row.set("liquidated_user", format!("0x{}", Hex::encode(&liq.liquidated_user)));
         row.set("mark_px", &liq.mark_px);
         row.set("liquidation_method", &liq.method);
+    } else {
+        row.set("liquidated_user", "");
+        row.set("mark_px", "");
+        row.set("liquidation_method", "");
     }
 }
 

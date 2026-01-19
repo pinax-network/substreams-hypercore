@@ -36,10 +36,9 @@ pub fn db_out(clock: Clock, block: Block) -> Result<DatabaseChanges, Error> {
 pub fn set_clock(clock: &Clock, row: &mut substreams_database_change::tables::Row) {
     row.set("block_num", clock.number);
     row.set("block_hash", format!("0x{}", clock.id));
-    if let Some(timestamp) = &clock.timestamp {
-        row.set("timestamp", timestamp.seconds);
-        row.set("minute", timestamp.seconds / 60);
-    }
+    let seconds = clock.timestamp.as_ref().map(|t| t.seconds).unwrap_or(0);
+    row.set("timestamp", seconds);
+    row.set("minute", seconds / 60);
 }
 
 pub fn event_key(clock: &Clock, event_index: usize, hash: &[u8]) -> [(&'static str, String); 6] {

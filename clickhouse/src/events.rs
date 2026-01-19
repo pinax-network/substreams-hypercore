@@ -46,9 +46,7 @@ fn set_event_metadata(clock: &Clock, event_index: usize, event: &Event, row: &mu
     set_clock(clock, row);
     row.set("event_index", event_index as u32);
     row.set("event_hash", format!("0x{}", Hex::encode(&event.hash)));
-    if let Some(time) = &event.time {
-        row.set("event_time", time.seconds);
-    }
+    row.set("event_time", event.time.as_ref().map(|t| t.seconds).unwrap_or(0));
 }
 
 fn process_delegation(
