@@ -1,5 +1,5 @@
 CREATE TABLE IF NOT EXISTS blocks (
-    block_num                   UInt32,
+    block_num                   UInt64,
     block_hash                  String,
     timestamp                   DateTime('UTC'),
     minute                      UInt32 COMMENT 'toRelativeMinuteNum(timestamp)',
