@@ -1,0 +1,116 @@
+-- OHLCV state table for fills --
+-- Aggregates fill data into OHLCV candlestick format for trading analytics
+CREATE TABLE IF NOT EXISTS state_ohlcv_fills (
+    -- bar interval --
+    timestamp               DateTime('UTC') COMMENT 'beginning of the bar',
+    interval_min            UInt16 DEFAULT 1 COMMENT 'bar interval in minutes (1m, 5m, 10m, 30m, 1h, 4h, 1d, 1w)',
+
+    -- timestamp & block number --
+    min_timestamp           SimpleAggregateFunction(min, DateTime('UTC')) COMMENT 'first timestamp seen',
+    max_timestamp           SimpleAggregateFunction(max, DateTime('UTC')) COMMENT 'last timestamp seen',
+    min_block_num           SimpleAggregateFunction(min, UInt64) COMMENT 'first block number seen',
+    max_block_num           SimpleAggregateFunction(max, UInt64) COMMENT 'last block number seen',
+
+    -- trading identity --
+    coin                    LowCardinality(String) COMMENT 'Trading pair/coin symbol',
+
+    -- OHLC price aggregates --
+    open                    AggregateFunction(argMin, Float64, UInt64) COMMENT 'opening price in the window',
+    high                    AggregateFunction(quantileDeterministic, Float64, UInt64) COMMENT 'high price (95th percentile) in the window',
+    low                     AggregateFunction(quantileDeterministic, Float64, UInt64) COMMENT 'low price (5th percentile) in the window',
+    close                   AggregateFunction(argMax, Float64, UInt64) COMMENT 'closing price in the window',
+
+    -- volume --
+    buy_volume              SimpleAggregateFunction(sum, Float64) COMMENT 'total buy volume in the window',
+    sell_volume             SimpleAggregateFunction(sum, Float64) COMMENT 'total sell volume in the window',
+    gross_volume            SimpleAggregateFunction(sum, Float64) COMMENT 'total volume (buy + sell) in the window',
+    net_volume              SimpleAggregateFunction(sum, Float64) COMMENT 'net volume (buy - sell) in the window',
+
+    -- fees --
+    total_fees              SimpleAggregateFunction(sum, Float64) COMMENT 'total fees collected in the window',
+
+    -- trade counts --
+    buy_count               SimpleAggregateFunction(sum, UInt64) COMMENT 'number of buy fills in the window',
+    sell_count              SimpleAggregateFunction(sum, UInt64) COMMENT 'number of sell fills in the window',
+    transactions            SimpleAggregateFunction(sum, UInt64) COMMENT 'total number of fills in the window',
+
+    -- unique counts --
+    uniq_user               AggregateFunction(uniq, String) COMMENT 'unique user addresses in the window',
+
+    -- indexes --
+    INDEX idx_timestamp         (timestamp)         TYPE minmax                 GRANULARITY 1,
+    INDEX idx_coin              (coin)              TYPE set(256)               GRANULARITY 1,
+    INDEX idx_gross_volume      (gross_volume)      TYPE minmax                 GRANULARITY 1,
+    INDEX idx_transactions      (transactions)      TYPE minmax                 GRANULARITY 1
+)
+ENGINE = AggregatingMergeTree
+ORDER BY (
+    interval_min,
+    coin,
+    timestamp
+)
+COMMENT 'OHLCV aggregated fill data for trading analytics';
+
+-- Materialized view to populate state_ohlcv_fills from fills table --
+CREATE MATERIALIZED VIEW IF NOT EXISTS mv_state_ohlcv_fills
+TO state_ohlcv_fills
+AS
+WITH
+    -- predefined intervals --
+    -- in minutes: 1m, 5m, 10m, 30m, 1h, 4h, 1d, 1w
+    [1, 5, 10, 30, 60, 240, 1440, 10080] AS intervals,
+
+    -- parse price and size as Float64 for calculations
+    toFloat64OrZero(price) AS price_f64,
+    toFloat64OrZero(size) AS size_f64,
+    toFloat64OrZero(fee) AS fee_f64,
+
+    -- determine if buy or sell
+    (side = 'FILL_SIDE_BUY') AS is_buy
+
+SELECT
+    arrayJoin(intervals) AS interval_min,
+    -- floor to the interval in seconds
+    toDateTime(intDiv(toUInt32(f.timestamp), interval_min * 60) * interval_min * 60, 'UTC') AS timestamp,
+
+    -- timestamp & block number --
+    min(f.timestamp) AS min_timestamp,
+    max(f.timestamp) AS max_timestamp,
+    min(f.block_num) AS min_block_num,
+    max(f.block_num) AS max_block_num,
+
+    -- trading identity --
+    f.coin AS coin,
+
+    -- OHLC --
+    argMinState(price_f64, f.block_num)                     AS open,
+    quantileDeterministicState(price_f64, f.block_num)      AS high,
+    quantileDeterministicState(price_f64, f.block_num)      AS low,
+    argMaxState(price_f64, f.block_num)                     AS close,
+
+    -- volume --
+    sum(if(is_buy, price_f64 * size_f64, 0))                AS buy_volume,
+    sum(if(NOT is_buy, price_f64 * size_f64, 0))            AS sell_volume,
+    sum(price_f64 * size_f64)                               AS gross_volume,
+    sum(if(is_buy, price_f64 * size_f64, -(price_f64 * size_f64))) AS net_volume,
+
+    -- fees --
+    sum(fee_f64)                                            AS total_fees,
+
+    -- trade counts --
+    sum(if(is_buy, 1, 0))                                   AS buy_count,
+    sum(if(NOT is_buy, 1, 0))                               AS sell_count,
+    count()                                                 AS transactions,
+
+    -- unique counts --
+    uniqState(f.user)                                       AS uniq_user
+
+FROM fills f
+WHERE price_f64 > 0 AND size_f64 > 0
+GROUP BY
+    -- bar interval
+    interval_min,
+    -- trading identity
+    coin,
+    -- bar beginning
+    timestamp;

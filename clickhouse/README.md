@@ -1,6 +1,6 @@
-# Clickhouse Polymarket
+# Clickhouse Hypercore
 
-This directory contains the ClickHouse schema for ingesting Polymarket event data from Substreams.
+This directory contains the ClickHouse schema for ingesting Hypercore blockchain data from Substreams.
 
 ## Schema Structure
 
@@ -9,36 +9,30 @@ The schema is organized into layers, with numbered prefixes indicating the depen
 ### Layer 0: Foundation (`schema.0.*`)
 
 - **`schema.0.blocks.sql`** - Block metadata table
-- **`schema.0.templates.sql`** - Template tables for transactions and logs that other tables inherit from
+- **`schema.0.templates.sql`** - Template tables for event data that other tables inherit from
 
 ### Layer 1: Event Tables (`schema.1.*`)
 
 Event-specific tables that extend the template tables:
 
-- **`schema.1.conditional_tokens.sql`** - ConditionalTokens contract events (ConditionPreparation, ConditionResolution, PositionSplit, PositionsMerge, PayoutRedemption)
-- **`schema.1.ctf_exchange.sql`** - CTFExchange contract events (OrderFilled, OrdersMatched, FeeCharged, etc.)
-- **`schema.1.fee_module.sql`** - FeeModule contract events
-- **`schema.1.negrisk_adapter.sql`** - NegRiskAdapter contract events
-- **`schema.1.safe_proxy_factory.sql`** - SafeProxyFactory contract events
-- **`schema.1.uma_ctf_adapter.sql`** - UmaCtfAdapter contract events
+- **`schema.1.fills.sql`** - Trade fill events with minute & count projections for analytics
+- **`schema.1.c_deposits_withdrawals.sql`** - Cross-chain deposit and withdrawal events
+- **`schema.1.delegations.sql`** - Staking delegation/undelegation events
+- **`schema.1.funding.sql`** - Funding rate delta events
+- **`schema.1.ledger_updates.sql`** - Various ledger update events (transfers, deposits, withdrawals, etc.)
+- **`schema.1.validator_rewards.sql`** - Validator reward distribution events
 
 ### Layer 2: Materialized Views (`schema.2.mv.*`)
 
 AggregatingMergeTree tables with materialized views for real-time aggregation:
 
-- **`schema.2.mv.state_open_interest.sql`** - Open interest aggregated by condition and time interval
-- **`schema.2.mv.state_orderbook.sql`** - Order book metrics aggregated by asset and time interval
-- **`schema.2.mv.state_user_condition_position.sql`** - User positions by condition (from splits/merges/redemptions)
-- **`schema.2.mv.state_user_position.sql`** - User positions by token (from exchange trades)
+- **`schema.2.mv.state_ohlcv_fills.sql`** - OHLCV (Open, High, Low, Close, Volume) candlestick data aggregated from fills
 
 ### Layer 3: Views (`schema.3.view.*`)
 
 Convenience views that query the aggregated state tables:
 
-- **`schema.3.view.open_interest.sql`** - Open interest views (per-condition and global)
-- **`schema.3.view.orderbook.sql`** - Order book views (per-asset and global)
-- **`schema.3.view.user_condition_position.sql`** - User condition position views
-- **`schema.3.view.user_position.sql`** - User position views with PNL calculations
+- **`schema.3.view.ohlcv_fills.sql`** - OHLCV view for querying candlestick data with merged aggregates
 
 ## Time Intervals
 
@@ -52,6 +46,21 @@ The materialized views aggregate data at multiple time intervals:
 - 1 day (1440m)
 - 1 week (10080m)
 
-## USDC Decimals
+## Fills Projections
 
-USDC has 6 decimals. The views provide both raw amounts (in base units) and scaled amounts (divided by 10^6) for convenience.
+The fills table includes specialized projections for analytics:
+
+### Count Projections
+Aggregate counts with min/max block and timestamp ranges:
+- `prj_coin_count` - Counts by trading pair
+- `prj_user_count` - Counts by user
+- `prj_side_count` - Counts by buy/sell side
+- `prj_direction_count` - Counts by trading direction
+
+### Minute Projections
+Counts grouped by minute for time-series analysis:
+- `prj_coin_by_minute` - Fills per coin per minute
+- `prj_user_by_minute` - Fills per user per minute
+- `prj_side_by_minute` - Fills per side per minute
+- `prj_direction_by_minute` - Fills per direction per minute
+- `prj_all_by_minute` - Combined grouping by coin, side, direction, and minute
