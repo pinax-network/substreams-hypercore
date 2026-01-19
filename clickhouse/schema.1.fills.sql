@@ -36,3 +36,27 @@ ALTER TABLE fills
     ADD PROJECTION IF NOT EXISTS prj_side_by_minute ( SELECT side, minute, count() GROUP BY side, minute ),
     ADD PROJECTION IF NOT EXISTS prj_direction_by_minute ( SELECT direction, minute, count() GROUP BY direction, minute ),
     ADD PROJECTION IF NOT EXISTS prj_all_by_minute ( SELECT coin, side, direction, minute, count() GROUP BY coin, side, direction, minute );
+
+-- Fills Liquidation table --
+-- Represents liquidation trade fills on Hypercore
+-- Only contains fills that have liquidation data
+CREATE TABLE IF NOT EXISTS fills_liquidation AS fills;
+ALTER TABLE fills_liquidation
+    -- Modify liquidation field types --
+    MODIFY COLUMN IF EXISTS mark_px Float64 COMMENT 'Mark price for liquidation',
+
+    -- PROJECTIONS for analytics (minute & count) --
+    ADD PROJECTION IF NOT EXISTS prj_coin_count ( SELECT coin, count(), min(block_num), max(block_num), min(timestamp), max(timestamp), min(minute), max(minute) GROUP BY coin ),
+    ADD PROJECTION IF NOT EXISTS prj_user_count ( SELECT user, count(), min(block_num), max(block_num), min(timestamp), max(timestamp), min(minute), max(minute) GROUP BY user ),
+    ADD PROJECTION IF NOT EXISTS prj_liquidated_user_count ( SELECT liquidated_user, count(), min(block_num), max(block_num), min(timestamp), max(timestamp), min(minute), max(minute) GROUP BY liquidated_user ),
+    ADD PROJECTION IF NOT EXISTS prj_side_count ( SELECT side, count(), min(block_num), max(block_num), min(timestamp), max(timestamp), min(minute), max(minute) GROUP BY side ),
+    ADD PROJECTION IF NOT EXISTS prj_direction_count ( SELECT direction, count(), min(block_num), max(block_num), min(timestamp), max(timestamp), min(minute), max(minute) GROUP BY direction ),
+    ADD PROJECTION IF NOT EXISTS prj_liquidation_method_count ( SELECT liquidation_method, count(), min(block_num), max(block_num), min(timestamp), max(timestamp), min(minute), max(minute) GROUP BY liquidation_method ),
+
+    -- minute projections --
+    ADD PROJECTION IF NOT EXISTS prj_coin_by_minute ( SELECT coin, minute, count() GROUP BY coin, minute ),
+    ADD PROJECTION IF NOT EXISTS prj_user_by_minute ( SELECT user, minute, count() GROUP BY user, minute ),
+    ADD PROJECTION IF NOT EXISTS prj_liquidated_user_by_minute ( SELECT liquidated_user, minute, count() GROUP BY liquidated_user, minute ),
+    ADD PROJECTION IF NOT EXISTS prj_side_by_minute ( SELECT side, minute, count() GROUP BY side, minute ),
+    ADD PROJECTION IF NOT EXISTS prj_direction_by_minute ( SELECT direction, minute, count() GROUP BY direction, minute ),
+    ADD PROJECTION IF NOT EXISTS prj_all_by_minute ( SELECT coin, side, direction, liquidation_method, minute, count() GROUP BY coin, side, direction, liquidation_method, minute );
