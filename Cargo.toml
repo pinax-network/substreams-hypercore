@@ -1,0 +1,20 @@
+[workspace]
+members = ["clickhouse", "common", "proto"]
+resolver = "2"
+
+[workspace.package]
+description = "Polymarket Substreams"
+edition = "2021"
+version = "0.0.0"
+license = "Apache-2.0"
+
+[workspace.dependencies]
+substreams = "0.7.0"
+substreams-abis = { git = "https://github.com/pinax-network/substreams-abis.git", rev = "65c72746864f1189fca7de488934ca8d945b5e76" }
+substreams-ethereum = "0.11.1"
+substreams-database-change = "3.0.0"
+prost = "0.13"
+prost-types = "0.13"
+
+[profile.release]
+lto = true

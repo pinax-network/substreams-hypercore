@@ -1,0 +1,75 @@
+specVersion: v0.1.0
+package:
+  name: clickhouse_polymarket
+  version: v0.1.2
+  url: https://github.com/pinax-network/substreams-polymarket
+  description: ClickHouse sink for Polymarket on Polygon
+  image: ../image.png
+
+imports:
+  # SQL Sink Substreams
+  database_changes: ./packages/substreams-database-change-v2.0.0.spkg
+  sql: ./packages/substreams-sink-sql-protodefs-v1.0.7.spkg
+
+  # Events
+  ctf_exchange: ./packages/ctf-exchange-v0.1.0.spkg
+  uma_ctf_adapter: ./packages/uma-ctf-adapter-v0.1.0.spkg
+  negrisk_adapter: ./packages/negrisk-adapter-v0.1.0.spkg
+  conditional_tokens: ./packages/conditional-tokens-v0.1.0.spkg
+  safe_proxy_factory: ./packages/safe-proxy-factory-v0.1.0.spkg
+  fee_module: ./packages/fee-module-v0.1.0.spkg
+
+binaries:
+  default:
+    type: wasm/rust-v1
+    file: ../target/wasm32-unknown-unknown/release/clickhouse.wasm
+
+modules:
+  - name: db_out
+    kind: map
+    inputs:
+      - source: sf.substreams.v1.Clock
+      - map: ctf_exchange:map_events
+      - map: uma_ctf_adapter:map_events
+      - map: negrisk_adapter:map_events
+      - map: conditional_tokens:map_events
+      - map: safe_proxy_factory:map_events
+      - map: fee_module:map_events
+    output:
+      type: proto:sf.substreams.sink.database.v1.DatabaseChanges
+
+sink:
+  module: db_out
+  type: sf.substreams.sink.sql.v1.Service
+  config:
+    schema: "./schema.sql"
+    engine: clickhouse
+    postgraphile_frontend:
+      enabled: false
+
+network: polygon
+
+# params:
+#   # CTF Exchange (CTFExchange) + Neg Risk CTF Exchange (NegRiskCTFExchange)
+#   ctf_exchange:map_events:
+#     "evt_addr:0x4bfb41d5b3570defd03c39a9a4d8de6bd8b8982e || evt_addr:0xc5d563a36ae78145c45a50134d48a1215220f80a"
+
+#   # UmaCtfAdapter v3.0 + UmaCtfAdapter v2.0
+#   uma_ctf_adapter:map_events:
+#     "evt_addr:0x2f5e3684cb1f318ec51b00edba38d79ac2c0aa9d || evt_addr:0x6a9d222616c90fca5754cd1333cfd9b7fb6a4f74"
+
+#   # Neg Risk Adapter (current) + Neg Risk Adapter (legacy)
+#   negrisk_adapter:map_events:
+#     "evt_addr:0xd91e80cf2e7be2e162c6513ced06f1dd0da35296 || evt_addr:0xf16a3bdffb7b882e3236243e901f6c5953e2ee0d"
+
+#   # Conditional Tokens
+#   conditional_tokens:map_events:
+#     "evt_addr:0x4d97dcd97ec945f40cf65f87097ace5ea0476045"
+
+#   # Safe Factory
+#   safe_proxy_factory:map_events:
+#     "evt_addr:0xaacfeea03eb1561c4e67d661e40682bd20e3541b"
+
+#   # FeeModule (v2 + v0.0.1) + NegRiskFeeModule (v2 + v1)
+#   fee_module:map_events:
+#     "evt_addr:0xe3f18acc55091e2c48d883fc8c8413319d4ab7b0 || evt_addr:0x56c79347e95530c01a2fc76e732f9566da16e113 || evt_addr:0xb768891e3130f6df18214ac804d4db76c2c37730 || evt_addr:0x78769d50be1763ed1ca0d5e878d93f05aabff29e"
