@@ -7,13 +7,19 @@ use crate::{event_key, set_event_metadata};
 
 pub fn process_fills(tables: &mut Tables, clock: &Clock, block: &Block) {
     for (index, fill) in block.fills.iter().enumerate() {
-        process_fill(tables, clock, index, fill);
+        // Write to the main fills table
+        process_fill(tables, clock, index, fill, "fills");
+        
+        // If there's liquidation data, also write to fills_liquidation table
+        if fill.liquidation.is_some() {
+            process_fill(tables, clock, index, fill, "fills_liquidation");
+        }
     }
 }
 
-fn process_fill(tables: &mut Tables, clock: &Clock, index: usize, fill: &Fill) {
+fn process_fill(tables: &mut Tables, clock: &Clock, index: usize, fill: &Fill, table_name: &str) {
     let key = event_key(clock, index, &fill.hash);
-    let row = tables.create_row("fills", key);
+    let row = tables.create_row(table_name, key);
 
     set_event_metadata(clock, index, &fill.hash, fill.time.as_ref(), row);
 
@@ -35,15 +41,20 @@ fn process_fill(tables: &mut Tables, clock: &Clock, index: usize, fill: &Fill) {
     row.set("twap_id", fill.twap_id);
     row.set("client_order_id", format!("0x{}", Hex::encode(&fill.client_order_id)));
 
-    // Liquidation fields (always set, empty when not present)
+    // Liquidation fields
     if let Some(liq) = &fill.liquidation {
         row.set("liquidated_user", format!("0x{}", Hex::encode(&liq.liquidated_user)));
+        // For fills_liquidation table, mark_px is Float64; for fills table, it's String
+        // We store as string representation; ClickHouse handles conversion for Float64 columns
         row.set("mark_px", &liq.mark_px);
         row.set("liquidation_method", &liq.method);
     } else {
-        row.set("liquidated_user", "");
-        row.set("mark_px", "");
-        row.set("liquidation_method", "");
+        // Only set empty values for the fills table (optional fields)
+        if table_name == "fills" {
+            row.set("liquidated_user", "");
+            row.set("mark_px", "");
+            row.set("liquidation_method", "");
+        }
     }
 }
 
