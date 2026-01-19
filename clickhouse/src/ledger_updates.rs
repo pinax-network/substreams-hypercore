@@ -9,7 +9,7 @@ use substreams::pb::substreams::Clock;
 use substreams::Hex;
 use substreams_database_change::tables::Tables;
 
-use crate::{event_key, set_clock};
+use crate::{event_key, set_event_metadata};
 
 pub fn process_ledger_updates(tables: &mut Tables, clock: &Clock, block: &Block) {
     for (event_index, event) in block.events.iter().enumerate() {
@@ -107,17 +107,14 @@ fn process_ledger_update(
     }
 }
 
-fn set_event_metadata(
+fn set_ledger_event_metadata(
     clock: &Clock,
     event_index: usize,
     event: &Event,
     users: &[String],
     row: &mut substreams_database_change::tables::Row,
 ) {
-    set_clock(clock, row);
-    row.set("event_index", event_index as u32);
-    row.set("event_hash", format!("0x{}", Hex::encode(&event.hash)));
-    row.set("event_time", event.time.as_ref().map(|t| t.seconds).unwrap_or(0));
+    set_event_metadata(clock, event_index, &event.hash, event.time.as_ref(), row);
     row.set("users", users.join(","));
 }
 
@@ -132,7 +129,7 @@ fn process_spot_transfer(
     let key = event_key(clock, event_index, &event.hash);
     let row = tables.create_row("ledger_spot_transfers", key);
 
-    set_event_metadata(clock, event_index, event, users, row);
+    set_ledger_event_metadata(clock, event_index, event, users, row);
 
     row.set("token", &spot_transfer.token);
     row.set("amount", &spot_transfer.amount);
@@ -156,7 +153,7 @@ fn process_c_staking_transfer(
     let key = event_key(clock, event_index, &event.hash);
     let row = tables.create_row("ledger_c_staking_transfers", key);
 
-    set_event_metadata(clock, event_index, event, users, row);
+    set_ledger_event_metadata(clock, event_index, event, users, row);
 
     row.set("token", &c_staking_transfer.token);
     row.set("amount", &c_staking_transfer.amount);
@@ -174,7 +171,7 @@ fn process_account_class_transfer(
     let key = event_key(clock, event_index, &event.hash);
     let row = tables.create_row("ledger_account_class_transfers", key);
 
-    set_event_metadata(clock, event_index, event, users, row);
+    set_ledger_event_metadata(clock, event_index, event, users, row);
 
     row.set("usdc", &account_class_transfer.usdc);
     row.set("to_perp", account_class_transfer.to_perp);
@@ -191,7 +188,7 @@ fn process_internal_transfer(
     let key = event_key(clock, event_index, &event.hash);
     let row = tables.create_row("ledger_internal_transfers", key);
 
-    set_event_metadata(clock, event_index, event, users, row);
+    set_ledger_event_metadata(clock, event_index, event, users, row);
 
     row.set("usdc", &internal_transfer.usdc);
     row.set("user", format!("0x{}", Hex::encode(&internal_transfer.user)));
@@ -210,7 +207,7 @@ fn process_sub_account_transfer(
     let key = event_key(clock, event_index, &event.hash);
     let row = tables.create_row("ledger_sub_account_transfers", key);
 
-    set_event_metadata(clock, event_index, event, users, row);
+    set_ledger_event_metadata(clock, event_index, event, users, row);
 
     row.set("usdc", &sub_account_transfer.usdc);
     row.set("user", format!("0x{}", Hex::encode(&sub_account_transfer.user)));
@@ -228,7 +225,7 @@ fn process_send(
     let key = event_key(clock, event_index, &event.hash);
     let row = tables.create_row("ledger_sends", key);
 
-    set_event_metadata(clock, event_index, event, users, row);
+    set_ledger_event_metadata(clock, event_index, event, users, row);
 
     row.set("user", format!("0x{}", Hex::encode(&send.user)));
     row.set("destination", format!("0x{}", Hex::encode(&send.destination)));
@@ -254,7 +251,7 @@ fn process_deposit(
     let key = event_key(clock, event_index, &event.hash);
     let row = tables.create_row("ledger_deposits", key);
 
-    set_event_metadata(clock, event_index, event, users, row);
+    set_ledger_event_metadata(clock, event_index, event, users, row);
 
     row.set("usdc", &deposit.usdc);
 }
@@ -270,7 +267,7 @@ fn process_withdraw(
     let key = event_key(clock, event_index, &event.hash);
     let row = tables.create_row("ledger_withdrawals", key);
 
-    set_event_metadata(clock, event_index, event, users, row);
+    set_ledger_event_metadata(clock, event_index, event, users, row);
 
     row.set("usdc", &withdraw.usdc);
     row.set("nonce", withdraw.nonce);
@@ -288,7 +285,7 @@ fn process_vault_deposit(
     let key = event_key(clock, event_index, &event.hash);
     let row = tables.create_row("ledger_vault_deposits", key);
 
-    set_event_metadata(clock, event_index, event, users, row);
+    set_ledger_event_metadata(clock, event_index, event, users, row);
 
     row.set("vault", format!("0x{}", Hex::encode(&vault_deposit.vault)));
     row.set("usdc", &vault_deposit.usdc);
@@ -305,7 +302,7 @@ fn process_rewards_claim(
     let key = event_key(clock, event_index, &event.hash);
     let row = tables.create_row("ledger_rewards_claims", key);
 
-    set_event_metadata(clock, event_index, event, users, row);
+    set_ledger_event_metadata(clock, event_index, event, users, row);
 
     row.set("amount", &rewards_claim.amount);
     row.set("token", &rewards_claim.token);
@@ -322,7 +319,7 @@ fn process_vault_withdraw(
     let key = event_key(clock, event_index, &event.hash);
     let row = tables.create_row("ledger_vault_withdrawals", key);
 
-    set_event_metadata(clock, event_index, event, users, row);
+    set_ledger_event_metadata(clock, event_index, event, users, row);
 
     row.set("vault", format!("0x{}", Hex::encode(&vault_withdraw.vault)));
     row.set("user", format!("0x{}", Hex::encode(&vault_withdraw.user)));
@@ -344,7 +341,7 @@ fn process_vault_leader_commission(
     let key = event_key(clock, event_index, &event.hash);
     let row = tables.create_row("ledger_vault_leader_commissions", key);
 
-    set_event_metadata(clock, event_index, event, users, row);
+    set_ledger_event_metadata(clock, event_index, event, users, row);
 
     row.set("user", format!("0x{}", Hex::encode(&vault_leader_commission.user)));
     row.set("usdc", &vault_leader_commission.usdc);
@@ -361,7 +358,7 @@ fn process_deploy_gas_auction(
     let key = event_key(clock, event_index, &event.hash);
     let row = tables.create_row("ledger_deploy_gas_auctions", key);
 
-    set_event_metadata(clock, event_index, event, users, row);
+    set_ledger_event_metadata(clock, event_index, event, users, row);
 
     row.set("token", &deploy_gas_auction.token);
     row.set("amount", &deploy_gas_auction.amount);
@@ -378,7 +375,7 @@ fn process_account_activation_gas(
     let key = event_key(clock, event_index, &event.hash);
     let row = tables.create_row("ledger_account_activation_gas", key);
 
-    set_event_metadata(clock, event_index, event, users, row);
+    set_ledger_event_metadata(clock, event_index, event, users, row);
 
     row.set("amount", &account_activation_gas.amount);
     row.set("token", &account_activation_gas.token);
@@ -395,7 +392,7 @@ fn process_activate_dex_abstraction(
     let key = event_key(clock, event_index, &event.hash);
     let row = tables.create_row("ledger_activate_dex_abstractions", key);
 
-    set_event_metadata(clock, event_index, event, users, row);
+    set_ledger_event_metadata(clock, event_index, event, users, row);
 
     row.set("dex", &activate_dex_abstraction.dex);
     row.set("token", &activate_dex_abstraction.token);
@@ -413,7 +410,7 @@ fn process_liquidation(
     let key = event_key(clock, event_index, &event.hash);
     let row = tables.create_row("ledger_liquidations", key);
 
-    set_event_metadata(clock, event_index, event, users, row);
+    set_ledger_event_metadata(clock, event_index, event, users, row);
 
     row.set("liquidated_ntl_pos", &liquidation.liquidated_ntl_pos);
     row.set("account_value", &liquidation.account_value);
@@ -447,7 +444,7 @@ fn process_spot_genesis(
     let key = event_key(clock, event_index, &event.hash);
     let row = tables.create_row("ledger_spot_genesis", key);
 
-    set_event_metadata(clock, event_index, event, users, row);
+    set_ledger_event_metadata(clock, event_index, event, users, row);
 
     row.set("token", &spot_genesis.token);
     row.set("amount", &spot_genesis.amount);
@@ -464,7 +461,7 @@ fn process_vault_distribution(
     let key = event_key(clock, event_index, &event.hash);
     let row = tables.create_row("ledger_vault_distributions", key);
 
-    set_event_metadata(clock, event_index, event, users, row);
+    set_ledger_event_metadata(clock, event_index, event, users, row);
 
     row.set("vault", format!("0x{}", Hex::encode(&vault_distribution.vault)));
     row.set("usdc", &vault_distribution.usdc);
@@ -481,7 +478,7 @@ fn process_borrow_lend(
     let key = event_key(clock, event_index, &event.hash);
     let row = tables.create_row("ledger_borrow_lends", key);
 
-    set_event_metadata(clock, event_index, event, users, row);
+    set_ledger_event_metadata(clock, event_index, event, users, row);
 
     row.set("token", &borrow_lend.token);
     row.set("amount", &borrow_lend.amount);
@@ -500,7 +497,7 @@ fn process_vault_create(
     let key = event_key(clock, event_index, &event.hash);
     let row = tables.create_row("ledger_vault_creates", key);
 
-    set_event_metadata(clock, event_index, event, users, row);
+    set_ledger_event_metadata(clock, event_index, event, users, row);
 
     row.set("vault", format!("0x{}", Hex::encode(&vault_create.vault)));
     row.set("usdc", &vault_create.usdc);

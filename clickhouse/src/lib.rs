@@ -41,6 +41,19 @@ pub fn set_clock(clock: &Clock, row: &mut substreams_database_change::tables::Ro
     row.set("minute", seconds / 60);
 }
 
+pub fn set_event_metadata(
+    clock: &Clock,
+    event_index: usize,
+    hash: &[u8],
+    time: Option<&prost_types::Timestamp>,
+    row: &mut substreams_database_change::tables::Row,
+) {
+    set_clock(clock, row);
+    row.set("event_index", event_index as u32);
+    row.set("event_hash", format!("0x{}", Hex::encode(hash)));
+    row.set("event_time", time.map(|t| t.seconds).unwrap_or(0));
+}
+
 pub fn event_key(clock: &Clock, event_index: usize, hash: &[u8]) -> [(&'static str, String); 6] {
     let seconds = clock
         .timestamp

@@ -3,7 +3,7 @@ use substreams::pb::substreams::Clock;
 use substreams::Hex;
 use substreams_database_change::tables::Tables;
 
-use crate::{event_key, set_clock};
+use crate::{event_key, set_event_metadata};
 
 pub fn process_fills(tables: &mut Tables, clock: &Clock, block: &Block) {
     for (index, fill) in block.fills.iter().enumerate() {
@@ -15,12 +15,7 @@ fn process_fill(tables: &mut Tables, clock: &Clock, index: usize, fill: &Fill) {
     let key = event_key(clock, index, &fill.hash);
     let row = tables.create_row("fills", key);
 
-    set_clock(clock, row);
-
-    // Event metadata
-    row.set("event_index", index as u32);
-    row.set("event_hash", format!("0x{}", Hex::encode(&fill.hash)));
-    row.set("event_time", fill.time.as_ref().map(|t| t.seconds).unwrap_or(0));
+    set_event_metadata(clock, index, &fill.hash, fill.time.as_ref(), row);
 
     // Fill-specific fields
     row.set("user", format!("0x{}", Hex::encode(&fill.user)));
