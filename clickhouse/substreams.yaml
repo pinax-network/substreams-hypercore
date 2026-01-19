@@ -34,29 +34,4 @@ sink:
     postgraphile_frontend:
       enabled: false
 
-network: polygon
-
-# params:
-#   # CTF Exchange (CTFExchange) + Neg Risk CTF Exchange (NegRiskCTFExchange)
-#   ctf_exchange:map_events:
-#     "evt_addr:0x4bfb41d5b3570defd03c39a9a4d8de6bd8b8982e || evt_addr:0xc5d563a36ae78145c45a50134d48a1215220f80a"
-
-#   # UmaCtfAdapter v3.0 + UmaCtfAdapter v2.0
-#   uma_ctf_adapter:map_events:
-#     "evt_addr:0x2f5e3684cb1f318ec51b00edba38d79ac2c0aa9d || evt_addr:0x6a9d222616c90fca5754cd1333cfd9b7fb6a4f74"
-
-#   # Neg Risk Adapter (current) + Neg Risk Adapter (legacy)
-#   negrisk_adapter:map_events:
-#     "evt_addr:0xd91e80cf2e7be2e162c6513ced06f1dd0da35296 || evt_addr:0xf16a3bdffb7b882e3236243e901f6c5953e2ee0d"
-
-#   # Conditional Tokens
-#   conditional_tokens:map_events:
-#     "evt_addr:0x4d97dcd97ec945f40cf65f87097ace5ea0476045"
-
-#   # Safe Factory
-#   safe_proxy_factory:map_events:
-#     "evt_addr:0xaacfeea03eb1561c4e67d661e40682bd20e3541b"
-
-#   # FeeModule (v2 + v0.0.1) + NegRiskFeeModule (v2 + v1)
-#   fee_module:map_events:
-#     "evt_addr:0xe3f18acc55091e2c48d883fc8c8413319d4ab7b0 || evt_addr:0x56c79347e95530c01a2fc76e732f9566da16e113 || evt_addr:0xb768891e3130f6df18214ac804d4db76c2c37730 || evt_addr:0x78769d50be1763ed1ca0d5e878d93f05aabff29e"
+network: hyprecore
