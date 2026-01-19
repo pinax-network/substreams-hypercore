@@ -44,8 +44,7 @@ fn process_fill(tables: &mut Tables, clock: &Clock, index: usize, fill: &Fill, t
     // Liquidation fields
     if let Some(liq) = &fill.liquidation {
         row.set("liquidated_user", format!("0x{}", Hex::encode(&liq.liquidated_user)));
-        // For fills_liquidation table, mark_px is Float64; for fills table, it's String
-        // We store as string representation; ClickHouse handles conversion for Float64 columns
+        // mark_px is stored as string; ClickHouse parses it to Float64 for fills_liquidation table
         row.set("mark_px", &liq.mark_px);
         row.set("liquidation_method", &liq.method);
     } else {

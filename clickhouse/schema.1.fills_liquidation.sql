@@ -8,7 +8,7 @@ ALTER TABLE fills_liquidation
     ADD COLUMN IF NOT EXISTS coin                        String,
     ADD COLUMN IF NOT EXISTS price                       String,
     ADD COLUMN IF NOT EXISTS size                        String,
-    ADD COLUMN IF NOT EXISTS side                        String COMMENT 'FILL_SIDE_ASK or FILL_SIDE_BUY',
+    ADD COLUMN IF NOT EXISTS side                        String COMMENT 'ASK or BUY',
     ADD COLUMN IF NOT EXISTS fill_time                   DateTime('UTC'),
     ADD COLUMN IF NOT EXISTS start_position              String,
     ADD COLUMN IF NOT EXISTS direction                   String COMMENT 'Trading direction enum',
