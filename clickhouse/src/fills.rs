@@ -9,7 +9,7 @@ pub fn process_fills(tables: &mut Tables, clock: &Clock, block: &Block) {
     for (index, fill) in block.fills.iter().enumerate() {
         // Write to the main fills table
         process_fill(tables, clock, index, fill, "fills");
-        
+
         // If there's liquidation data, also write to fills_liquidation table
         if fill.liquidation.is_some() {
             process_fill(tables, clock, index, fill, "fills_liquidation");
@@ -29,7 +29,10 @@ fn process_fill(tables: &mut Tables, clock: &Clock, index: usize, fill: &Fill, t
     row.set("price", &fill.price);
     row.set("size", &fill.size);
     row.set("side", fill_side_to_string(fill.side));
-    row.set("fill_time", fill.time.as_ref().map(|t| t.seconds).unwrap_or(0));
+    row.set(
+        "fill_time",
+        fill.time.as_ref().map(|t| t.seconds).unwrap_or(0),
+    );
     row.set("start_position", &fill.start_position);
     row.set("direction", trading_direction_to_string(fill.direction));
     row.set("closed_pnl", &fill.closed_pnl);
@@ -39,21 +42,27 @@ fn process_fill(tables: &mut Tables, clock: &Clock, index: usize, fill: &Fill, t
     row.set("transaction_id", fill.transaction_id);
     row.set("fee_token", &fill.fee_token);
     row.set("twap_id", fill.twap_id);
-    row.set("client_order_id", format!("0x{}", Hex::encode(&fill.client_order_id)));
+    row.set(
+        "client_order_id",
+        format!("0x{}", Hex::encode(&fill.client_order_id)),
+    );
 
     // Liquidation fields
     if let Some(liq) = &fill.liquidation {
-        row.set("liquidated_user", format!("0x{}", Hex::encode(&liq.liquidated_user)));
+        row.set(
+            "liquidated_user",
+            format!("0x{}", Hex::encode(&liq.liquidated_user)),
+        );
         // mark_px is stored as string; ClickHouse parses it to Float64 for fills_liquidation table
         row.set("mark_px", &liq.mark_px);
         row.set("liquidation_method", &liq.method);
     } else {
-        // Only set empty values for the fills table (optional fields)
-        if table_name == "fills" {
-            row.set("liquidated_user", "");
-            row.set("mark_px", "");
-            row.set("liquidation_method", "");
-        }
+        // // Only set empty values for the fills table (optional fields)
+        // if table_name == "fills" {
+        //     row.set("liquidated_user", "");
+        //     row.set("mark_px", "");
+        //     row.set("liquidation_method", "");
+        // }
     }
 }
 
