@@ -47,22 +47,17 @@ fn process_fill(tables: &mut Tables, clock: &Clock, index: usize, fill: &Fill, t
         format!("0x{}", Hex::encode(&fill.client_order_id)),
     );
 
-    // Liquidation fields
-    if let Some(liq) = &fill.liquidation {
-        row.set(
-            "liquidated_user",
-            format!("0x{}", Hex::encode(&liq.liquidated_user)),
-        );
-        // mark_px is stored as string; ClickHouse parses it to Float64 for fills_liquidation table
-        row.set("mark_px", &liq.mark_px);
-        row.set("liquidation_method", &liq.method);
-    } else {
-        // // Only set empty values for the fills table (optional fields)
-        // if table_name == "fills" {
-        //     row.set("liquidated_user", "");
-        //     row.set("mark_px", "");
-        //     row.set("liquidation_method", "");
-        // }
+    // Liquidation fields - only set for fills_liquidation table
+    if table_name == "fills_liquidation" {
+        if let Some(liq) = &fill.liquidation {
+            row.set(
+                "liquidated_user",
+                format!("0x{}", Hex::encode(&liq.liquidated_user)),
+            );
+            // mark_px is stored as string; ClickHouse parses it to Float64 for fills_liquidation table
+            row.set("mark_px", &liq.mark_px);
+            row.set("liquidation_method", &liq.method);
+        }
     }
 }
 
