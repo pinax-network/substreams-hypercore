@@ -7,12 +7,12 @@ use crate::{event_key, set_event_metadata};
 
 pub fn process_fills(tables: &mut Tables, clock: &Clock, block: &Block) {
     for (index, fill) in block.fills.iter().enumerate() {
-        // Write to the main fills table
-        process_fill(tables, clock, index, fill, "fills");
-
-        // If there's liquidation data, also write to fills_liquidation table
         if fill.liquidation.is_some() {
+            // If there's liquidation data, write to fills_liquidation table
             process_fill(tables, clock, index, fill, "fills_liquidation");
+        } else {
+            // If there's no liquidation data, write to fills table
+            process_fill(tables, clock, index, fill, "fills");
         }
     }
 }
