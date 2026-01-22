@@ -8,6 +8,11 @@ use substreams::pb::substreams::Clock;
 use substreams::Hex;
 use substreams_database_change::pb::database::DatabaseChanges;
 
+/// Parse a string value to f64, returning 0.0 if parsing fails
+pub fn parse_f64(value: &str) -> f64 {
+    value.parse().unwrap_or(0.0)
+}
+
 #[substreams::handlers::map]
 pub fn db_out(clock: Clock, block: Block) -> Result<DatabaseChanges, Error> {
     let mut tables = substreams_database_change::tables::Tables::new();

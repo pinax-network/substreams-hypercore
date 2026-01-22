@@ -6,12 +6,7 @@ use substreams::pb::substreams::Clock;
 use substreams::Hex;
 use substreams_database_change::tables::Tables;
 
-use crate::{event_key, set_event_metadata};
-
-/// Parse a string value to f64, returning 0.0 if parsing fails
-fn parse_f64(value: &str) -> f64 {
-    value.parse().unwrap_or(0.0)
-}
+use crate::{event_key, parse_f64, set_event_metadata};
 
 pub fn process_events(tables: &mut Tables, clock: &Clock, block: &Block) {
     for (event_index, event) in block.events.iter().enumerate() {
