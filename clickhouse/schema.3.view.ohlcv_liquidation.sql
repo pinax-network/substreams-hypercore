@@ -27,11 +27,19 @@ SELECT
     quantileDeterministicMerge(0.05)(mark_px_quantile) AS mark_px_low,
     argMaxMerge(mark_px_close) AS mark_px_close,
 
-    -- volume --
+    -- volume by side --
     sum(buy_volume) AS buy_volume,
-    sum(sell_volume) AS sell_volume,
-    sum(gross_volume) AS gross_volume,
-    sum(net_volume) AS net_volume,
+    sum(ask_volume) AS ask_volume,
+
+    -- volume by direction --
+    sum(open_long_volume) AS open_long_volume,
+    sum(close_long_volume) AS close_long_volume,
+    sum(open_short_volume) AS open_short_volume,
+    sum(close_short_volume) AS close_short_volume,
+
+    -- derived volume --
+    sum(buy_volume) + sum(ask_volume) AS gross_volume,
+    sum(buy_volume) - sum(ask_volume) AS net_volume,
 
     -- fees --
     sum(total_fees) AS total_fees,

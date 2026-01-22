@@ -5,6 +5,11 @@ use substreams_database_change::tables::Tables;
 
 use crate::{event_key, set_event_metadata};
 
+/// Parse a string value to f64, returning 0.0 if parsing fails
+fn parse_f64(value: &str) -> f64 {
+    value.parse().unwrap_or(0.0)
+}
+
 pub fn process_fills(tables: &mut Tables, clock: &Clock, block: &Block) {
     for (index, fill) in block.fills.iter().enumerate() {
         if fill.liquidation.is_some() {
@@ -23,11 +28,24 @@ fn process_fill(tables: &mut Tables, clock: &Clock, index: usize, fill: &Fill, t
 
     set_event_metadata(clock, index, &fill.hash, fill.time.as_ref(), row);
 
+    // Parse price, size, and fee as f64 (default to 0.0 if parsing fails)
+    // Then convert back to string for database insertion (ClickHouse will parse as Float64)
+    let price = parse_f64(&fill.price);
+    let size = parse_f64(&fill.size);
+    let fee = parse_f64(&fill.fee);
+
+    // Format client_order_id - empty string if empty, otherwise hex encoded
+    let client_order_id = if fill.client_order_id.is_empty() {
+        String::new()
+    } else {
+        format!("0x{}", Hex::encode(&fill.client_order_id))
+    };
+
     // Fill-specific fields
     row.set("user", format!("0x{}", Hex::encode(&fill.user)));
     row.set("coin", &fill.coin);
-    row.set("price", &fill.price);
-    row.set("size", &fill.size);
+    row.set("price", price.to_string());
+    row.set("size", size.to_string());
     row.set("side", fill_side_to_string(fill.side));
     row.set(
         "fill_time",
@@ -38,14 +56,11 @@ fn process_fill(tables: &mut Tables, clock: &Clock, index: usize, fill: &Fill, t
     row.set("closed_pnl", &fill.closed_pnl);
     row.set("order_id", fill.order_id);
     row.set("crossed", fill.crossed);
-    row.set("fee", &fill.fee);
+    row.set("fee", fee.to_string());
     row.set("transaction_id", fill.transaction_id);
     row.set("fee_token", &fill.fee_token);
     row.set("twap_id", fill.twap_id);
-    row.set(
-        "client_order_id",
-        format!("0x{}", Hex::encode(&fill.client_order_id)),
-    );
+    row.set("client_order_id", client_order_id);
 
     // Liquidation fields
     if let Some(liq) = &fill.liquidation {
@@ -53,8 +68,8 @@ fn process_fill(tables: &mut Tables, clock: &Clock, index: usize, fill: &Fill, t
             "liquidated_user",
             format!("0x{}", Hex::encode(&liq.liquidated_user)),
         );
-        // mark_px is stored as string; ClickHouse parses it to Float64 for fills_liquidation table
-        row.set("mark_px", &liq.mark_px);
+        let mark_px = parse_f64(&liq.mark_px);
+        row.set("mark_px", mark_px.to_string());
         row.set("liquidation_method", &liq.method);
     } else {
         // // Only set empty values for the fills table (optional fields)

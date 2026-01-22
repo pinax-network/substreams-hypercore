@@ -24,11 +24,15 @@ CREATE TABLE IF NOT EXISTS state_ohlcv_liquidation (
     mark_px_quantile        AggregateFunction(quantileDeterministic, Float64, UInt64) COMMENT 'quantile mark price in the window',
     mark_px_close           AggregateFunction(argMax, Float64, UInt64) COMMENT 'closing mark price in the window',
 
-    -- volume --
-    buy_volume              SimpleAggregateFunction(sum, Float64) COMMENT 'total buy volume in the window',
-    sell_volume             SimpleAggregateFunction(sum, Float64) COMMENT 'total sell volume in the window',
-    gross_volume            SimpleAggregateFunction(sum, Float64) COMMENT 'total volume (buy + sell) in the window',
-    net_volume              SimpleAggregateFunction(sum, Float64) COMMENT 'net volume (buy - sell) in the window',
+    -- volume by side --
+    buy_volume              SimpleAggregateFunction(sum, Float64) COMMENT 'total buy side volume in the window',
+    ask_volume              SimpleAggregateFunction(sum, Float64) COMMENT 'total ask side volume in the window',
+
+    -- volume by direction --
+    open_long_volume        SimpleAggregateFunction(sum, Float64) COMMENT 'total open long volume in the window',
+    close_long_volume       SimpleAggregateFunction(sum, Float64) COMMENT 'total close long volume in the window',
+    open_short_volume       SimpleAggregateFunction(sum, Float64) COMMENT 'total open short volume in the window',
+    close_short_volume      SimpleAggregateFunction(sum, Float64) COMMENT 'total close short volume in the window',
 
     -- fees --
     total_fees              SimpleAggregateFunction(sum, Float64) COMMENT 'total fees collected in the window',
@@ -45,7 +49,6 @@ CREATE TABLE IF NOT EXISTS state_ohlcv_liquidation (
     -- indexes --
     INDEX idx_timestamp         (timestamp)         TYPE minmax                 GRANULARITY 1,
     INDEX idx_coin              (coin)              TYPE set(256)               GRANULARITY 1,
-    INDEX idx_gross_volume      (gross_volume)      TYPE minmax                 GRANULARITY 1,
     INDEX idx_transactions      (transactions)      TYPE minmax                 GRANULARITY 1
 )
 ENGINE = AggregatingMergeTree
@@ -57,6 +60,7 @@ ORDER BY (
 COMMENT 'OHLCV aggregated liquidation fill data for trading analytics';
 
 -- Materialized view to populate state_ohlcv_liquidation from fills_liquidation table --
+-- Filter by client_order_id != '' to only count initiating orders (not counterparties)
 CREATE MATERIALIZED VIEW IF NOT EXISTS mv_state_ohlcv_liquidation
 TO state_ohlcv_liquidation
 AS
@@ -65,13 +69,12 @@ WITH
     -- in minutes: 1m, 5m, 10m, 30m, 1h, 4h, 1d, 1w
     [1, 5, 10, 30, 60, 240, 1440, 10080] AS intervals,
 
-    -- parse price and size as Float64 for calculations
-    toFloat64OrZero(price) AS price_f64,
-    toFloat64OrZero(size) AS size_f64,
-    toFloat64OrZero(fee) AS fee_f64,
-
-    -- determine if buy or sell
-    (side = 'BUY') AS is_buy
+    -- determine side and direction
+    (side = 'BUY') AS is_buy,
+    (direction = 'OPEN_LONG') AS is_open_long,
+    (direction = 'CLOSE_LONG') AS is_close_long,
+    (direction = 'OPEN_SHORT') AS is_open_short,
+    (direction = 'CLOSE_SHORT') AS is_close_short
 
 SELECT
     arrayJoin(intervals) AS interval_min,
@@ -88,23 +91,27 @@ SELECT
     f.coin AS coin,
 
     -- OHLC --
-    argMinState(price_f64, f.block_num)                     AS open,
-    quantileDeterministicState(price_f64, f.block_num)      AS quantile,
-    argMaxState(price_f64, f.block_num)                     AS close,
+    argMinState(f.price, f.block_num)                       AS open,
+    quantileDeterministicState(f.price, f.block_num)        AS quantile,
+    argMaxState(f.price, f.block_num)                       AS close,
 
     -- mark price OHLC --
     argMinState(f.mark_px, f.block_num)                     AS mark_px_open,
     quantileDeterministicState(f.mark_px, f.block_num)      AS mark_px_quantile,
     argMaxState(f.mark_px, f.block_num)                     AS mark_px_close,
 
-    -- volume --
-    sum(if(is_buy, price_f64 * size_f64, 0))                AS buy_volume,
-    sum(if(NOT is_buy, price_f64 * size_f64, 0))            AS sell_volume,
-    sum(price_f64 * size_f64)                               AS gross_volume,
-    sum(if(is_buy, price_f64 * size_f64, -(price_f64 * size_f64))) AS net_volume,
+    -- volume by side --
+    sum(if(is_buy, f.price * f.size, 0))                    AS buy_volume,
+    sum(if(NOT is_buy, f.price * f.size, 0))                AS ask_volume,
+
+    -- volume by direction --
+    sum(if(is_open_long, f.price * f.size, 0))              AS open_long_volume,
+    sum(if(is_close_long, f.price * f.size, 0))             AS close_long_volume,
+    sum(if(is_open_short, f.price * f.size, 0))             AS open_short_volume,
+    sum(if(is_close_short, f.price * f.size, 0))            AS close_short_volume,
 
     -- fees --
-    sum(fee_f64)                                            AS total_fees,
+    sum(f.fee)                                              AS total_fees,
 
     -- trade counts --
     sum(if(is_buy, 1, 0))                                   AS buy_count,
@@ -116,7 +123,7 @@ SELECT
     uniqState(f.liquidated_user)                            AS uniq_liquidated_user
 
 FROM fills_liquidation f
-WHERE price_f64 > 0 AND size_f64 > 0
+WHERE f.price > 0 AND f.size > 0 AND f.client_order_id != ''
 GROUP BY
     -- bar interval
     interval_min,
