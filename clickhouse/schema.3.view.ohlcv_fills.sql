@@ -22,8 +22,8 @@ SELECT
     argMaxMerge(close) AS close,
 
     -- volume by side --
-    sum(buy_volume) AS buy_volume,
-    sum(ask_volume) AS ask_volume,
+    sum(t.buy_volume) AS buy_volume,
+    sum(t.ask_volume) AS ask_volume,
 
     -- volume by direction --
     sum(open_long_volume) AS open_long_volume,
@@ -32,8 +32,8 @@ SELECT
     sum(close_short_volume) AS close_short_volume,
 
     -- derived volume --
-    sum(buy_volume) + sum(ask_volume) AS gross_volume,
-    sum(buy_volume) - sum(ask_volume) AS net_volume,
+    sum(t.buy_volume) + sum(t.ask_volume) AS gross_volume,
+    sum(t.buy_volume) - sum(t.ask_volume) AS net_volume,
 
     -- fees --
     sum(total_fees) AS total_fees,
@@ -46,7 +46,7 @@ SELECT
     -- unique counts --
     uniqMerge(uniq_user) AS uniq_user
 
-FROM state_ohlcv_fills
+FROM state_ohlcv_fills AS t
 GROUP BY
     interval_min,
     coin,
