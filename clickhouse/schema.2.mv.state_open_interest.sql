@@ -59,14 +59,9 @@ WITH
     -- in minutes: 1m, 5m, 10m, 30m, 1h, 4h, 1d, 1w
     [1, 5, 10, 30, 60, 240, 1440, 10080] AS intervals,
 
-    -- parse szi and funding amounts as Float64 for calculations
-    toFloat64OrZero(szi) AS szi_f64,
-    toFloat64OrZero(funding_amount) AS funding_f64,
-    toFloat64OrZero(funding_rate) AS rate_f64,
-
     -- determine if long or short position
-    (szi_f64 > 0) AS is_long,
-    (szi_f64 < 0) AS is_short
+    (f.szi > 0) AS is_long,
+    (f.szi < 0) AS is_short
 
 SELECT
     arrayJoin(intervals) AS interval_min,
@@ -83,18 +78,18 @@ SELECT
     f.coin AS coin,
 
     -- open interest aggregates --
-    sum(szi_f64)                                            AS total_szi,
-    sum(abs(szi_f64))                                       AS abs_szi,
-    sum(if(is_long, szi_f64, 0))                            AS long_szi,
-    sum(if(is_short, szi_f64, 0))                           AS short_szi,
+    sum(f.szi)                                              AS total_szi,
+    sum(abs(f.szi))                                         AS abs_szi,
+    sum(if(is_long, f.szi, 0))                              AS long_szi,
+    sum(if(is_short, f.szi, 0))                             AS short_szi,
 
     -- funding aggregates --
-    sum(funding_f64)                                        AS total_funding,
-    sum(if(funding_f64 > 0, funding_f64, 0))                AS positive_funding,
-    sum(if(funding_f64 < 0, funding_f64, 0))                AS negative_funding,
+    sum(f.funding_amount)                                   AS total_funding,
+    sum(if(f.funding_amount > 0, f.funding_amount, 0))      AS positive_funding,
+    sum(if(f.funding_amount < 0, f.funding_amount, 0))      AS negative_funding,
 
     -- funding rate --
-    avgState(rate_f64)                                      AS avg_funding_rate,
+    avgState(f.funding_rate)                                AS avg_funding_rate,
 
     -- counts --
     count()                                                 AS funding_events,
@@ -105,7 +100,7 @@ SELECT
     uniqState(f.user)                                       AS uniq_user
 
 FROM funding_deltas f
-WHERE szi_f64 != 0
+WHERE f.szi != 0
 GROUP BY
     -- bar interval
     interval_min,

@@ -8,6 +8,11 @@ use substreams_database_change::tables::Tables;
 
 use crate::{event_key, set_event_metadata};
 
+/// Parse a string value to f64, returning 0.0 if parsing fails
+fn parse_f64(value: &str) -> f64 {
+    value.parse().unwrap_or(0.0)
+}
+
 pub fn process_events(tables: &mut Tables, clock: &Clock, block: &Block) {
     for (event_index, event) in block.events.iter().enumerate() {
         process_event(tables, clock, event_index, event);
@@ -72,8 +77,11 @@ fn process_c_deposit(
 
     set_event_metadata(clock, event_index, &event.hash, event.time.as_ref(), row);
 
+    // Parse amount as f64 (default to 0.0 if parsing fails)
+    let amount = parse_f64(&c_deposit.amount);
+
     row.set("user", format!("0x{}", Hex::encode(&c_deposit.user)));
-    row.set("amount", &c_deposit.amount);
+    row.set("amount", amount.to_string());
 }
 
 fn process_c_withdrawal(
@@ -88,8 +96,11 @@ fn process_c_withdrawal(
 
     set_event_metadata(clock, event_index, &event.hash, event.time.as_ref(), row);
 
+    // Parse amount as f64 (default to 0.0 if parsing fails)
+    let amount = parse_f64(&c_withdrawal.amount);
+
     row.set("user", format!("0x{}", Hex::encode(&c_withdrawal.user)));
-    row.set("amount", &c_withdrawal.amount);
+    row.set("amount", amount.to_string());
     row.set("is_finalized", c_withdrawal.is_finalized);
 }
 
@@ -118,11 +129,16 @@ fn process_funding_delta(
 
     set_event_metadata(clock, event_index, &event.hash, event.time.as_ref(), row);
 
+    // Parse funding amounts as f64 (default to 0.0 if parsing fails)
+    let funding_amount = parse_f64(&delta.funding_amount);
+    let szi = parse_f64(&delta.szi);
+    let funding_rate = parse_f64(&delta.funding_rate);
+
     row.set("user", format!("0x{}", Hex::encode(&delta.user)));
     row.set("coin", &delta.coin);
-    row.set("funding_amount", &delta.funding_amount);
-    row.set("szi", &delta.szi);
-    row.set("funding_rate", &delta.funding_rate);
+    row.set("funding_amount", funding_amount.to_string());
+    row.set("szi", szi.to_string());
+    row.set("funding_rate", funding_rate.to_string());
 }
 
 fn process_validator_rewards(

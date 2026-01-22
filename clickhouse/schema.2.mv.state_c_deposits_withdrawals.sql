@@ -51,10 +51,7 @@ AS
 WITH
     -- predefined intervals --
     -- in minutes: 1m, 5m, 10m, 30m, 1h, 4h, 1d, 1w
-    [1, 5, 10, 30, 60, 240, 1440, 10080] AS intervals,
-
-    -- parse amount as Float64 for calculations
-    toFloat64OrZero(amount) AS amount_f64
+    [1, 5, 10, 30, 60, 240, 1440, 10080] AS intervals
 
 SELECT
     arrayJoin(intervals) AS interval_min,
@@ -68,7 +65,7 @@ SELECT
     max(d.block_num) AS max_block_num,
 
     -- deposit aggregates --
-    sum(amount_f64)                                         AS deposit_volume,
+    sum(d.amount)                                           AS deposit_volume,
     count()                                                 AS deposit_count,
 
     -- withdrawal aggregates (zero for deposits) --
@@ -80,14 +77,14 @@ SELECT
     toUInt64(0)                                             AS withdrawal_pending_count,
 
     -- net flow (positive for deposits) --
-    sum(amount_f64)                                         AS net_flow,
-    sum(amount_f64)                                         AS gross_volume,
+    sum(d.amount)                                           AS net_flow,
+    sum(d.amount)                                           AS gross_volume,
 
     -- unique counts --
     uniqState(d.user)                                       AS uniq_user
 
 FROM c_deposits d
-WHERE amount_f64 > 0
+WHERE d.amount > 0
 GROUP BY
     -- bar interval
     interval_min,
@@ -101,10 +98,7 @@ AS
 WITH
     -- predefined intervals --
     -- in minutes: 1m, 5m, 10m, 30m, 1h, 4h, 1d, 1w
-    [1, 5, 10, 30, 60, 240, 1440, 10080] AS intervals,
-
-    -- parse amount as Float64 for calculations
-    toFloat64OrZero(amount) AS amount_f64
+    [1, 5, 10, 30, 60, 240, 1440, 10080] AS intervals
 
 SELECT
     arrayJoin(intervals) AS interval_min,
@@ -122,22 +116,22 @@ SELECT
     toUInt64(0)                                             AS deposit_count,
 
     -- withdrawal aggregates --
-    sum(amount_f64)                                         AS withdrawal_volume,
-    sum(if(w.is_finalized, amount_f64, 0))                  AS withdrawal_finalized_volume,
-    sum(if(NOT w.is_finalized, amount_f64, 0))              AS withdrawal_pending_volume,
+    sum(w.amount)                                           AS withdrawal_volume,
+    sum(if(w.is_finalized, w.amount, 0))                    AS withdrawal_finalized_volume,
+    sum(if(NOT w.is_finalized, w.amount, 0))                AS withdrawal_pending_volume,
     count()                                                 AS withdrawal_count,
     sum(if(w.is_finalized, 1, 0))                           AS withdrawal_finalized_count,
     sum(if(NOT w.is_finalized, 1, 0))                       AS withdrawal_pending_count,
 
     -- net flow (negative for withdrawals) --
-    sum(-amount_f64)                                        AS net_flow,
-    sum(amount_f64)                                         AS gross_volume,
+    sum(-w.amount)                                          AS net_flow,
+    sum(w.amount)                                           AS gross_volume,
 
     -- unique counts --
     uniqState(w.user)                                       AS uniq_user
 
 FROM c_withdrawals w
-WHERE amount_f64 > 0
+WHERE w.amount > 0
 GROUP BY
     -- bar interval
     interval_min,
