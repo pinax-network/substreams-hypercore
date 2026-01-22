@@ -22,18 +22,20 @@ SELECT
     argMaxMerge(close) AS close,
 
     -- volume by side --
-    sum(t.buy_volume) AS buy_volume,
-    sum(t.ask_volume) AS ask_volume,
+    sum(t.side_buy_volume) AS side_buy_volume,
+    sum(t.side_ask_volume) AS side_ask_volume,
 
     -- volume by direction --
+    sum(direction_buy_volume) AS direction_buy_volume,
+    sum(direction_sell_volume) AS direction_sell_volume,
     sum(open_long_volume) AS open_long_volume,
     sum(close_long_volume) AS close_long_volume,
     sum(open_short_volume) AS open_short_volume,
     sum(close_short_volume) AS close_short_volume,
 
     -- derived volume --
-    sum(t.buy_volume) + sum(t.ask_volume) AS gross_volume,
-    sum(t.buy_volume) - sum(t.ask_volume) AS net_volume,
+    sum(t.side_buy_volume) + sum(t.side_ask_volume) AS gross_volume,
+    sum(t.side_buy_volume) - sum(t.side_ask_volume) AS net_volume,
 
     -- fees --
     sum(total_fees) AS total_fees,
