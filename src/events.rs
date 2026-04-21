@@ -1,4 +1,4 @@
-use proto::pb::pinax::hypercore::v1::{
+use crate::pb::pinax::hypercore::v1::{
     event_body, Block, CDeposit, CWithdrawal, Delegation, Event, Funding, FundingDelta,
     ValidatorReward, ValidatorRewards,
 };

@@ -1,29 +1,18 @@
 specVersion: v0.1.0
 package:
-  name: clickhouse_hypercore
-  version: v0.1.2
+  name: hypercore_clickhouse
+  version: v0.2.0
   url: https://github.com/pinax-network/substreams-hypercore
-  description: ClickHouse sink for Hypercore
+  description: Hypercore (ClickHouse)
   image: ../image.png
 
 imports:
-  # SQL Sink Substreams
-  database_changes: ../spkg/substreams-database-change-v2.0.0.spkg
   sql: ../spkg/substreams-sink-sql-protodefs-v1.0.7.spkg
-
-binaries:
-  default:
-    type: wasm/rust-v1
-    file: ../target/wasm32-unknown-unknown/release/clickhouse.wasm
+  db: ../spkg/hypercore-v0.2.0.spkg
 
 modules:
   - name: db_out
-    kind: map
-    inputs:
-      - source: sf.substreams.v1.Clock
-      - source: pinax.hypercore.v1.Block
-    output:
-      type: proto:sf.substreams.sink.database.v1.DatabaseChanges
+    use: db:db_out
 
 sink:
   module: db_out

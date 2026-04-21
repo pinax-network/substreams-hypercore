@@ -1,4 +1,4 @@
-use proto::pb::pinax::hypercore::v1::{Block, Fill, FillSide, TradingDirection};
+use crate::pb::pinax::hypercore::v1::{Block, Fill, FillSide, TradingDirection};
 use substreams::pb::substreams::Clock;
 use substreams::Hex;
 use substreams_database_change::tables::Tables;

@@ -2,8 +2,7 @@ ENDPOINT ?= hypercore.substreams.pinax.network:443
 START_BLOCK ?= 866536721
 STOP_BLOCK ?= +10000
 PARALLEL_JOBS ?= 500
-
-
+.DEFAULT_GOAL := pack
 
 .PHONY: protogen
 protogen:
@@ -15,7 +14,7 @@ build:
 
 .PHONY: pack
 pack: build
-	substreams pack -o ../spkg/{spkgDefaultName}
+	substreams pack -o ./spkg/{spkgDefaultName}
 
 .PHONY: noop
 noop: build

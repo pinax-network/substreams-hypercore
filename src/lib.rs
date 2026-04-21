@@ -1,8 +1,9 @@
 mod events;
 mod fills;
 mod ledger_updates;
+pub mod pb;
 
-use proto::pb::pinax::hypercore::v1::Block;
+use crate::pb::pinax::hypercore::v1::Block;
 use substreams::errors::Error;
 use substreams::pb::substreams::Clock;
 use substreams::Hex;

@@ -1,4 +1,4 @@
-use proto::pb::pinax::hypercore::v1::{
+use crate::pb::pinax::hypercore::v1::{
     event_body, ledger_update_delta, AccountActivationGas, AccountClassTransfer,
     ActivateDexAbstraction, Block, BorrowLend, CStakingTransfer, DeployGasAuction, Deposit, Event,
     InternalTransfer, LedgerUpdate, LeverageType, Liquidation, RewardsClaim, Send, SpotGenesis,
