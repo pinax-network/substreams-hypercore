@@ -1,0 +1,39 @@
+specVersion: v0.1.0
+package:
+  name: clickhouse_hypercore
+  version: v0.1.2
+  url: https://github.com/pinax-network/substreams-hypercore
+  description: ClickHouse sink for Hypercore
+  image: ./image.png
+
+imports:
+  # SQL Sink Substreams
+  database_changes: ./spkg/substreams-database-change-v2.0.0.spkg
+  sql: ./spkg/substreams-sink-sql-protodefs-v1.0.7.spkg
+
+protobuf:
+  files:
+    - block.proto
+    - event.proto
+    - fill.proto
+  importPaths:
+    - ./proto
+  excludePaths:
+    - sf/substreams
+    - google
+
+binaries:
+  default:
+    type: wasm/rust-v1
+    file: ./target/wasm32-unknown-unknown/release/clickhouse.wasm
+
+modules:
+  - name: db_out
+    kind: map
+    inputs:
+      - source: sf.substreams.v1.Clock
+      - source: pinax.hypercore.v1.Block
+    output:
+      type: proto:sf.substreams.sink.database.v1.DatabaseChanges
+
+network: hyprecore
