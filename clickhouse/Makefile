@@ -1,4 +1,4 @@
-ENDPOINT ?= hypercore.substreams.pinax.network:443
+ENDPOINT ?= hypercore-substreams-tier1-prod.kan-sst2.pinax.io:443
 START_BLOCK ?= 866500000
 STOP_BLOCK ?= 866501000
 PARALLEL_JOBS ?= 100
@@ -19,7 +19,7 @@ pack: schema
 
 .PHONY: dev
 dev: pack
-	substreams-sink-sql run clickhouse://default:@localhost:9000/default substreams.yaml -e $(ENDPOINT) $(START_BLOCK):$(STOP_BLOCK) --undo-buffer-size 0 --on-module-hash-mistmatch=warn --batch-block-flush-interval 1 --live-block-flush-interval 1 --infinite-retry --plaintext
+	substreams-sink-sql run clickhouse://default:@localhost:9000/default substreams.yaml -e $(ENDPOINT) $(START_BLOCK):$(STOP_BLOCK) --undo-buffer-size 0 --on-module-hash-mistmatch=warn --batch-block-flush-interval 1 --live-block-flush-interval 1 --infinite-retry
 
 .PHONY: setup
 setup: pack
