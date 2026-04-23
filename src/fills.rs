@@ -3,7 +3,7 @@ use substreams::pb::substreams::Clock;
 use substreams::Hex;
 use substreams_database_change::tables::Tables;
 
-use crate::{event_key, parse_f64, set_event_metadata};
+use crate::{event_key, parse_f64, set_event_metadata, set_numeric_field};
 
 pub fn process_fills(tables: &mut Tables, clock: &Clock, block: &Block) {
     for (index, fill) in block.fills.iter().enumerate() {
@@ -49,6 +49,7 @@ fn process_fill(tables: &mut Tables, clock: &Clock, index: usize, fill: &Fill, t
     row.set("start_position", &fill.start_position);
     row.set("direction", trading_direction_to_string(fill.direction));
     row.set("closed_pnl", &fill.closed_pnl);
+    set_numeric_field(row, "closed_pnl_num", &fill.closed_pnl);
     row.set("order_id", fill.order_id);
     row.set("crossed", fill.crossed);
     row.set("fee", fee.to_string());
@@ -79,7 +80,7 @@ fn process_fill(tables: &mut Tables, clock: &Clock, index: usize, fill: &Fill, t
 fn fill_side_to_string(side: i32) -> &'static str {
     match FillSide::try_from(side) {
         Ok(FillSide::Ask) => "ASK",
-        Ok(FillSide::Buy) => "BUY",
+        Ok(FillSide::Buy) => "BID",
         _ => "UNSPECIFIED",
     }
 }

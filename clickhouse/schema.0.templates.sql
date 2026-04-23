@@ -6,7 +6,7 @@ CREATE TABLE IF NOT EXISTS TEMPLATE_EVENT (
     block_num                   UInt64,
     block_hash                  String,
     timestamp                   DateTime('UTC'),
-    minute                      UInt32 COMMENT 'toRelativeMinuteNum(timestamp)',
+    minute                      UInt32 MATERIALIZED toRelativeMinuteNum(timestamp),
 
     -- event --
     event_index                 UInt32, -- derived from Substreams
@@ -15,5 +15,5 @@ CREATE TABLE IF NOT EXISTS TEMPLATE_EVENT (
 )
 ENGINE = MergeTree
 ORDER BY (
-    minute, timestamp, block_num
+    timestamp, block_num
 );

@@ -25,7 +25,7 @@ CREATE TABLE IF NOT EXISTS state_ohlcv_liquidation (
     mark_px_close           AggregateFunction(argMax, Float64, UInt64) COMMENT 'closing mark price in the window',
 
     -- volume by side --
-    side_buy_volume         SimpleAggregateFunction(sum, Float64) COMMENT 'total buy side volume in the window',
+    side_buy_volume         SimpleAggregateFunction(sum, Float64) COMMENT 'total bid-side volume in the window',
     side_ask_volume         SimpleAggregateFunction(sum, Float64) COMMENT 'total ask side volume in the window',
 
     -- volume by direction --
@@ -40,7 +40,7 @@ CREATE TABLE IF NOT EXISTS state_ohlcv_liquidation (
     total_fees              SimpleAggregateFunction(sum, Float64) COMMENT 'total fees collected in the window',
 
     -- trade counts --
-    buy_count               SimpleAggregateFunction(sum, UInt64) COMMENT 'number of buy fills in the window',
+    buy_count               SimpleAggregateFunction(sum, UInt64) COMMENT 'number of bid-side fills in the window',
     sell_count              SimpleAggregateFunction(sum, UInt64) COMMENT 'number of sell fills in the window',
     transactions            SimpleAggregateFunction(sum, UInt64) COMMENT 'total number of fills in the window',
 
@@ -72,7 +72,7 @@ WITH
     [1, 5, 10, 30, 60, 240, 1440, 10080] AS intervals,
 
     -- determine side --
-    (side = 'BUY') AS is_side_buy,
+    (side IN ('BUY', 'BID')) AS is_side_bid,
 
     -- determine direction --
     (direction = 'BUY') AS is_direction_buy,
@@ -85,11 +85,11 @@ WITH
 SELECT
     arrayJoin(intervals) AS interval_min,
     -- floor to the interval in seconds
-    toDateTime(intDiv(toUInt32(f.timestamp), interval_min * 60) * interval_min * 60, 'UTC') AS timestamp,
+    toDateTime(intDiv(toUInt32(f.fill_time), interval_min * 60) * interval_min * 60, 'UTC') AS timestamp,
 
     -- timestamp & block number --
-    min(f.timestamp) AS min_timestamp,
-    max(f.timestamp) AS max_timestamp,
+    min(f.fill_time) AS min_timestamp,
+    max(f.fill_time) AS max_timestamp,
     min(f.block_num) AS min_block_num,
     max(f.block_num) AS max_block_num,
 
@@ -107,8 +107,8 @@ SELECT
     argMaxState(f.mark_px, f.block_num)                     AS mark_px_close,
 
     -- volume by side --
-    sum(if(is_side_buy, f.price * f.size, 0))               AS side_buy_volume,
-    sum(if(NOT is_side_buy, f.price * f.size, 0))           AS side_ask_volume,
+    sum(if(is_side_bid, f.price * f.size, 0))               AS side_buy_volume,
+    sum(if(NOT is_side_bid, f.price * f.size, 0))           AS side_ask_volume,
 
     -- volume by direction --
     sum(if(is_direction_buy, f.price * f.size, 0))          AS direction_buy_volume,
@@ -122,8 +122,8 @@ SELECT
     sum(f.fee)                                              AS total_fees,
 
     -- trade counts --
-    sum(if(is_side_buy, 1, 0))                              AS buy_count,
-    sum(if(NOT is_side_buy, 1, 0))                          AS sell_count,
+    sum(if(is_side_bid, 1, 0))                              AS buy_count,
+    sum(if(NOT is_side_bid, 1, 0))                          AS sell_count,
     count()                                                 AS transactions,
 
     -- unique counts --

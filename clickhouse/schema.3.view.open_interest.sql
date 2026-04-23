@@ -1,5 +1,5 @@
--- Open Interest view --
--- Provides a convenient interface for querying open interest data with merged aggregates
+-- Funding snapshot observation view --
+-- Provides a convenient interface for querying merged funding snapshot observations by coin
 CREATE VIEW IF NOT EXISTS open_interest AS
 SELECT
     -- bar interval --
@@ -15,11 +15,11 @@ SELECT
     -- trading identity --
     coin,
 
-    -- open interest aggregates --
-    sum(total_szi) AS total_szi,
-    sum(abs_szi) AS abs_szi,
-    sum(long_szi) AS long_szi,
-    sum(short_szi) AS short_szi,
+    -- funding snapshot observation aggregates --
+    sum(sum_szi_observations) AS sum_szi_observations,
+    sum(sum_abs_szi_observations) AS sum_abs_szi_observations,
+    sum(sum_long_szi_observations) AS sum_long_szi_observations,
+    sum(sum_short_szi_observations) AS sum_short_szi_observations,
 
     -- funding aggregates --
     sum(total_funding) AS total_funding,

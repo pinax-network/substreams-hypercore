@@ -13,8 +13,12 @@ schema:
 		echo "" >> schema.sql; \
 	done
 
+.PHONY: db-pack
+db-pack:
+	$(MAKE) -C .. pack
+
 .PHONY: pack
-pack: schema
+pack: schema db-pack
 	substreams pack -o ../spkg/{spkgDefaultName}
 
 .PHONY: dev

@@ -6,7 +6,7 @@ use substreams::pb::substreams::Clock;
 use substreams::Hex;
 use substreams_database_change::tables::Tables;
 
-use crate::{event_key, parse_f64, set_event_metadata};
+use crate::{event_key, parse_f64, set_event_metadata, set_numeric_field};
 
 pub fn process_events(tables: &mut Tables, clock: &Clock, block: &Block) {
     for (event_index, event) in block.events.iter().enumerate() {
@@ -57,6 +57,7 @@ fn process_delegation(
     row.set("user", format!("0x{}", Hex::encode(&delegation.user)));
     row.set("validator", format!("0x{}", Hex::encode(&delegation.validator)));
     row.set("amount", &delegation.amount);
+    set_numeric_field(row, "amount_num", &delegation.amount);
     row.set("is_undelegate", delegation.is_undelegate);
 }
 
