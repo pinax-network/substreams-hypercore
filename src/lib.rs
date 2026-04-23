@@ -52,7 +52,6 @@ pub fn set_clock(clock: &Clock, row: &mut substreams_database_change::tables::Ro
     row.set("block_hash", format!("0x{}", clock.id));
     let seconds = clock.timestamp.as_ref().map(|t| t.seconds).unwrap_or(0);
     row.set("timestamp", seconds);
-    row.set("minute", seconds / 60);
 }
 
 pub fn set_event_metadata(
@@ -68,14 +67,9 @@ pub fn set_event_metadata(
     row.set("event_time", time.map(|t| t.seconds).unwrap_or(0));
 }
 
-pub fn event_key(clock: &Clock, event_index: usize, hash: &[u8]) -> [(&'static str, String); 6] {
-    let seconds = clock
-        .timestamp
-        .as_ref()
-        .map(|t| t.seconds)
-        .unwrap_or_default();
+pub fn event_key(clock: &Clock, event_index: usize, hash: &[u8]) -> [(&'static str, String); 5] {
+    let seconds = clock.timestamp.as_ref().map(|t| t.seconds).unwrap_or_default();
     [
-        ("minute", (seconds / 60).to_string()),
         ("timestamp", seconds.to_string()),
         ("block_num", clock.number.to_string()),
         ("event_index", event_index.to_string()),
