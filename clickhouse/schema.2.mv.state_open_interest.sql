@@ -1,5 +1,5 @@
 -- Funding snapshot observation state table --
--- Aggregates funding delta snapshot observations by coin; this is not a current-position state table
+-- Aggregates funding delta snapshot observations by coin and is not a current-position state table
 CREATE TABLE IF NOT EXISTS state_open_interest (
     -- bar interval --
     timestamp               DateTime('UTC') COMMENT 'beginning of the bar',
