@@ -16,10 +16,10 @@ CREATE TABLE IF NOT EXISTS state_c_deposits_withdrawals (
     deposit_count           SimpleAggregateFunction(sum, UInt64) COMMENT 'number of deposits in the window',
 
     -- withdrawal aggregates --
-    withdrawal_volume           SimpleAggregateFunction(sum, Float64) COMMENT 'total withdrawal volume in the window',
+    withdrawal_volume           SimpleAggregateFunction(sum, Float64) COMMENT 'total withdrawal volume in the window, counted once from pending withdrawals',
     withdrawal_finalized_volume SimpleAggregateFunction(sum, Float64) COMMENT 'total finalized withdrawal volume in the window',
     withdrawal_pending_volume   SimpleAggregateFunction(sum, Float64) COMMENT 'total pending withdrawal volume in the window',
-    withdrawal_count            SimpleAggregateFunction(sum, UInt64) COMMENT 'number of withdrawals in the window',
+    withdrawal_count            SimpleAggregateFunction(sum, UInt64) COMMENT 'number of withdrawals in the window, counted once from pending withdrawals',
     withdrawal_finalized_count  SimpleAggregateFunction(sum, UInt64) COMMENT 'number of finalized withdrawals in the window',
     withdrawal_pending_count    SimpleAggregateFunction(sum, UInt64) COMMENT 'number of pending withdrawals in the window',
 
@@ -116,16 +116,16 @@ SELECT
     toUInt64(0)                                             AS deposit_count,
 
     -- withdrawal aggregates --
-    sum(w.amount)                                           AS withdrawal_volume,
+    sum(if(NOT w.is_finalized, w.amount, 0))                AS withdrawal_volume,
     sum(if(w.is_finalized, w.amount, 0))                    AS withdrawal_finalized_volume,
     sum(if(NOT w.is_finalized, w.amount, 0))                AS withdrawal_pending_volume,
-    count()                                                 AS withdrawal_count,
+    sum(if(NOT w.is_finalized, 1, 0))                       AS withdrawal_count,
     sum(if(w.is_finalized, 1, 0))                           AS withdrawal_finalized_count,
     sum(if(NOT w.is_finalized, 1, 0))                       AS withdrawal_pending_count,
 
-    -- net flow (negative for withdrawals) --
-    sum(-w.amount)                                          AS net_flow,
-    sum(w.amount)                                           AS gross_volume,
+    -- net flow (negative for pending withdrawals, finalized rows are tracked separately above) --
+    sum(if(NOT w.is_finalized, -w.amount, 0))               AS net_flow,
+    sum(if(NOT w.is_finalized, w.amount, 0))                AS gross_volume,
 
     -- unique counts --
     uniqState(w.user)                                       AS uniq_user

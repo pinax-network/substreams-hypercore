@@ -14,6 +14,14 @@ pub fn parse_f64(value: &str) -> f64 {
     value.parse().unwrap_or(0.0)
 }
 
+pub fn set_numeric_field(
+    row: &mut substreams_database_change::tables::Row,
+    field: &str,
+    value: &str,
+) {
+    row.set(field, parse_f64(value).to_string());
+}
+
 #[substreams::handlers::map]
 pub fn db_out(clock: Clock, block: Block) -> Result<DatabaseChanges, Error> {
     let mut tables = substreams_database_change::tables::Tables::new();

@@ -9,7 +9,7 @@ use substreams::pb::substreams::Clock;
 use substreams::Hex;
 use substreams_database_change::tables::Tables;
 
-use crate::{event_key, set_event_metadata};
+use crate::{event_key, set_event_metadata, set_numeric_field};
 
 pub fn process_ledger_updates(tables: &mut Tables, clock: &Clock, block: &Block) {
     for (event_index, event) in block.events.iter().enumerate() {
@@ -133,11 +133,15 @@ fn process_spot_transfer(
 
     row.set("token", &spot_transfer.token);
     row.set("amount", &spot_transfer.amount);
+    set_numeric_field(row, "amount_num", &spot_transfer.amount);
     row.set("usdc_value", &spot_transfer.usdc_value);
+    set_numeric_field(row, "usdc_value_num", &spot_transfer.usdc_value);
     row.set("user", format!("0x{}", Hex::encode(&spot_transfer.user)));
     row.set("destination", format!("0x{}", Hex::encode(&spot_transfer.destination)));
     row.set("fee", &spot_transfer.fee);
+    set_numeric_field(row, "fee_num", &spot_transfer.fee);
     row.set("native_token_fee", &spot_transfer.native_token_fee);
+    set_numeric_field(row, "native_token_fee_num", &spot_transfer.native_token_fee);
     row.set("nonce", spot_transfer.nonce);
     row.set("fee_token", &spot_transfer.fee_token);
 }
@@ -157,6 +161,7 @@ fn process_c_staking_transfer(
 
     row.set("token", &c_staking_transfer.token);
     row.set("amount", &c_staking_transfer.amount);
+    set_numeric_field(row, "amount_num", &c_staking_transfer.amount);
     row.set("is_deposit", c_staking_transfer.is_deposit);
 }
 
@@ -174,6 +179,7 @@ fn process_account_class_transfer(
     set_ledger_event_metadata(clock, event_index, event, users, row);
 
     row.set("usdc", &account_class_transfer.usdc);
+    set_numeric_field(row, "usdc_num", &account_class_transfer.usdc);
     row.set("to_perp", account_class_transfer.to_perp);
 }
 
@@ -191,9 +197,11 @@ fn process_internal_transfer(
     set_ledger_event_metadata(clock, event_index, event, users, row);
 
     row.set("usdc", &internal_transfer.usdc);
+    set_numeric_field(row, "usdc_num", &internal_transfer.usdc);
     row.set("user", format!("0x{}", Hex::encode(&internal_transfer.user)));
     row.set("destination", format!("0x{}", Hex::encode(&internal_transfer.destination)));
     row.set("fee", &internal_transfer.fee);
+    set_numeric_field(row, "fee_num", &internal_transfer.fee);
 }
 
 fn process_sub_account_transfer(
@@ -210,6 +218,7 @@ fn process_sub_account_transfer(
     set_ledger_event_metadata(clock, event_index, event, users, row);
 
     row.set("usdc", &sub_account_transfer.usdc);
+    set_numeric_field(row, "usdc_num", &sub_account_transfer.usdc);
     row.set("user", format!("0x{}", Hex::encode(&sub_account_transfer.user)));
     row.set("destination", format!("0x{}", Hex::encode(&sub_account_transfer.destination)));
 }
@@ -233,9 +242,13 @@ fn process_send(
     row.set("destination_dex", &send.destination_dex);
     row.set("token", &send.token);
     row.set("amount", &send.amount);
+    set_numeric_field(row, "amount_num", &send.amount);
     row.set("usdc_value", &send.usdc_value);
+    set_numeric_field(row, "usdc_value_num", &send.usdc_value);
     row.set("fee", &send.fee);
+    set_numeric_field(row, "fee_num", &send.fee);
     row.set("native_token_fee", &send.native_token_fee);
+    set_numeric_field(row, "native_token_fee_num", &send.native_token_fee);
     row.set("nonce", send.nonce);
     row.set("fee_token", &send.fee_token);
 }
@@ -254,6 +267,7 @@ fn process_deposit(
     set_ledger_event_metadata(clock, event_index, event, users, row);
 
     row.set("usdc", &deposit.usdc);
+    set_numeric_field(row, "usdc_num", &deposit.usdc);
 }
 
 fn process_withdraw(
@@ -270,8 +284,10 @@ fn process_withdraw(
     set_ledger_event_metadata(clock, event_index, event, users, row);
 
     row.set("usdc", &withdraw.usdc);
+    set_numeric_field(row, "usdc_num", &withdraw.usdc);
     row.set("nonce", withdraw.nonce);
     row.set("fee", &withdraw.fee);
+    set_numeric_field(row, "fee_num", &withdraw.fee);
 }
 
 fn process_vault_deposit(
@@ -289,6 +305,7 @@ fn process_vault_deposit(
 
     row.set("vault", format!("0x{}", Hex::encode(&vault_deposit.vault)));
     row.set("usdc", &vault_deposit.usdc);
+    set_numeric_field(row, "usdc_num", &vault_deposit.usdc);
 }
 
 fn process_rewards_claim(
@@ -305,6 +322,7 @@ fn process_rewards_claim(
     set_ledger_event_metadata(clock, event_index, event, users, row);
 
     row.set("amount", &rewards_claim.amount);
+    set_numeric_field(row, "amount_num", &rewards_claim.amount);
     row.set("token", &rewards_claim.token);
 }
 
@@ -324,10 +342,15 @@ fn process_vault_withdraw(
     row.set("vault", format!("0x{}", Hex::encode(&vault_withdraw.vault)));
     row.set("user", format!("0x{}", Hex::encode(&vault_withdraw.user)));
     row.set("requested_usd", &vault_withdraw.requested_usd);
+    set_numeric_field(row, "requested_usd_num", &vault_withdraw.requested_usd);
     row.set("commission", &vault_withdraw.commission);
+    set_numeric_field(row, "commission_num", &vault_withdraw.commission);
     row.set("closing_cost", &vault_withdraw.closing_cost);
+    set_numeric_field(row, "closing_cost_num", &vault_withdraw.closing_cost);
     row.set("basis", &vault_withdraw.basis);
+    set_numeric_field(row, "basis_num", &vault_withdraw.basis);
     row.set("net_withdrawn_usd", &vault_withdraw.net_withdrawn_usd);
+    set_numeric_field(row, "net_withdrawn_usd_num", &vault_withdraw.net_withdrawn_usd);
 }
 
 fn process_vault_leader_commission(
@@ -345,6 +368,7 @@ fn process_vault_leader_commission(
 
     row.set("user", format!("0x{}", Hex::encode(&vault_leader_commission.user)));
     row.set("usdc", &vault_leader_commission.usdc);
+    set_numeric_field(row, "usdc_num", &vault_leader_commission.usdc);
 }
 
 fn process_deploy_gas_auction(
@@ -362,6 +386,7 @@ fn process_deploy_gas_auction(
 
     row.set("token", &deploy_gas_auction.token);
     row.set("amount", &deploy_gas_auction.amount);
+    set_numeric_field(row, "amount_num", &deploy_gas_auction.amount);
 }
 
 fn process_account_activation_gas(
@@ -378,6 +403,7 @@ fn process_account_activation_gas(
     set_ledger_event_metadata(clock, event_index, event, users, row);
 
     row.set("amount", &account_activation_gas.amount);
+    set_numeric_field(row, "amount_num", &account_activation_gas.amount);
     row.set("token", &account_activation_gas.token);
 }
 
@@ -397,6 +423,7 @@ fn process_activate_dex_abstraction(
     row.set("dex", &activate_dex_abstraction.dex);
     row.set("token", &activate_dex_abstraction.token);
     row.set("amount", &activate_dex_abstraction.amount);
+    set_numeric_field(row, "amount_num", &activate_dex_abstraction.amount);
 }
 
 fn process_liquidation(
@@ -413,7 +440,9 @@ fn process_liquidation(
     set_ledger_event_metadata(clock, event_index, event, users, row);
 
     row.set("liquidated_ntl_pos", &liquidation.liquidated_ntl_pos);
+    set_numeric_field(row, "liquidated_ntl_pos_num", &liquidation.liquidated_ntl_pos);
     row.set("account_value", &liquidation.account_value);
+    set_numeric_field(row, "account_value_num", &liquidation.account_value);
     row.set("leverage_type", leverage_type_to_string(liquidation.leverage_type));
 
     // Serialize liquidated positions as JSON
@@ -448,6 +477,7 @@ fn process_spot_genesis(
 
     row.set("token", &spot_genesis.token);
     row.set("amount", &spot_genesis.amount);
+    set_numeric_field(row, "amount_num", &spot_genesis.amount);
 }
 
 fn process_vault_distribution(
@@ -465,6 +495,7 @@ fn process_vault_distribution(
 
     row.set("vault", format!("0x{}", Hex::encode(&vault_distribution.vault)));
     row.set("usdc", &vault_distribution.usdc);
+    set_numeric_field(row, "usdc_num", &vault_distribution.usdc);
 }
 
 fn process_borrow_lend(
@@ -482,7 +513,9 @@ fn process_borrow_lend(
 
     row.set("token", &borrow_lend.token);
     row.set("amount", &borrow_lend.amount);
+    set_numeric_field(row, "amount_num", &borrow_lend.amount);
     row.set("interest_amount", &borrow_lend.interest_amount);
+    set_numeric_field(row, "interest_amount_num", &borrow_lend.interest_amount);
     row.set("operation", &borrow_lend.operation);
 }
 
@@ -501,5 +534,7 @@ fn process_vault_create(
 
     row.set("vault", format!("0x{}", Hex::encode(&vault_create.vault)));
     row.set("usdc", &vault_create.usdc);
+    set_numeric_field(row, "usdc_num", &vault_create.usdc);
     row.set("fee", &vault_create.fee);
+    set_numeric_field(row, "fee_num", &vault_create.fee);
 }

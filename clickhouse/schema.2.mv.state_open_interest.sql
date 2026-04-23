@@ -1,5 +1,5 @@
--- Open Interest state table --
--- Aggregates funding delta data into open interest metrics by coin
+-- Funding snapshot observation state table --
+-- Aggregates funding delta snapshot observations by coin; this is not a current-position state table
 CREATE TABLE IF NOT EXISTS state_open_interest (
     -- bar interval --
     timestamp               DateTime('UTC') COMMENT 'beginning of the bar',
@@ -14,11 +14,11 @@ CREATE TABLE IF NOT EXISTS state_open_interest (
     -- trading identity --
     coin                    LowCardinality(String) COMMENT 'Trading pair/coin symbol',
 
-    -- open interest aggregates --
-    total_szi               SimpleAggregateFunction(sum, Float64) COMMENT 'total signed position size (sum of szi)',
-    abs_szi                 SimpleAggregateFunction(sum, Float64) COMMENT 'absolute position size (sum of abs(szi))',
-    long_szi                SimpleAggregateFunction(sum, Float64) COMMENT 'total long positions (sum of szi where szi > 0)',
-    short_szi               SimpleAggregateFunction(sum, Float64) COMMENT 'total short positions (sum of szi where szi < 0, negative values preserved)',
+    -- funding snapshot observation aggregates --
+    sum_szi_observations            SimpleAggregateFunction(sum, Float64) COMMENT 'sum of signed szi observations seen in the window',
+    sum_abs_szi_observations        SimpleAggregateFunction(sum, Float64) COMMENT 'sum of absolute szi observations seen in the window',
+    sum_long_szi_observations       SimpleAggregateFunction(sum, Float64) COMMENT 'sum of positive szi observations seen in the window',
+    sum_short_szi_observations      SimpleAggregateFunction(sum, Float64) COMMENT 'sum of negative szi observations seen in the window',
 
     -- funding aggregates --
     total_funding           SimpleAggregateFunction(sum, Float64) COMMENT 'total funding amount in the window',
@@ -39,7 +39,7 @@ CREATE TABLE IF NOT EXISTS state_open_interest (
     -- indexes --
     INDEX idx_timestamp         (timestamp)         TYPE minmax                 GRANULARITY 1,
     INDEX idx_coin              (coin)              TYPE set(256)               GRANULARITY 1,
-    INDEX idx_abs_szi           (abs_szi)           TYPE minmax                 GRANULARITY 1,
+    INDEX idx_sum_abs_szi_observations (sum_abs_szi_observations) TYPE minmax GRANULARITY 1,
     INDEX idx_funding_events    (funding_events)    TYPE minmax                 GRANULARITY 1
 )
 ENGINE = AggregatingMergeTree
@@ -48,7 +48,7 @@ ORDER BY (
     coin,
     timestamp
 )
-COMMENT 'Open interest aggregated data from funding deltas';
+COMMENT 'Funding delta snapshot observations aggregated by coin';
 
 -- Materialized view to populate state_open_interest from funding_deltas table --
 CREATE MATERIALIZED VIEW IF NOT EXISTS mv_state_open_interest
@@ -77,11 +77,11 @@ SELECT
     -- trading identity --
     f.coin AS coin,
 
-    -- open interest aggregates --
-    sum(f.szi)                                              AS total_szi,
-    sum(abs(f.szi))                                         AS abs_szi,
-    sum(if(is_long, f.szi, 0))                              AS long_szi,
-    sum(if(is_short, f.szi, 0))                             AS short_szi,
+    -- funding snapshot observation aggregates --
+    sum(f.szi)                                              AS sum_szi_observations,
+    sum(abs(f.szi))                                         AS sum_abs_szi_observations,
+    sum(if(is_long, f.szi, 0))                              AS sum_long_szi_observations,
+    sum(if(is_short, f.szi, 0))                             AS sum_short_szi_observations,
 
     -- funding aggregates --
     sum(f.funding_amount)                                   AS total_funding,
