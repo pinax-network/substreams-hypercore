@@ -1,5 +1,5 @@
 -- Funding snapshot observation view --
--- Provides a convenient interface for querying merged funding snapshot observations by coin
+-- Provides a convenient interface for querying merged funding snapshot observations by dex and coin
 CREATE VIEW IF NOT EXISTS open_interest AS
 SELECT
     -- bar interval --
@@ -12,7 +12,8 @@ SELECT
     min(min_block_num) AS min_block_num,
     max(max_block_num) AS max_block_num,
 
-    -- trading identity --
+    -- DEX/coin identity --
+    dex,
     coin,
 
     -- funding snapshot observation aggregates --
@@ -40,5 +41,6 @@ SELECT
 FROM state_open_interest
 GROUP BY
     interval_min,
+    dex,
     coin,
     timestamp;

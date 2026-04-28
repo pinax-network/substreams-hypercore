@@ -12,7 +12,8 @@ SELECT
     min(min_block_num) AS min_block_num,
     max(max_block_num) AS max_block_num,
 
-    -- trading identity --
+    -- DEX/coin identity --
+    dex,
     coin,
 
     -- OHLC --
@@ -58,5 +59,6 @@ SELECT
 FROM state_ohlcv_liquidation AS t
 GROUP BY
     interval_min,
+    dex,
     coin,
     timestamp;

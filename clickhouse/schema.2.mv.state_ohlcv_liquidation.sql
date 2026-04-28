@@ -11,7 +11,8 @@ CREATE TABLE IF NOT EXISTS state_ohlcv_liquidation (
     min_block_num           SimpleAggregateFunction(min, UInt64) COMMENT 'first block number seen',
     max_block_num           SimpleAggregateFunction(max, UInt64) COMMENT 'last block number seen',
 
-    -- trading identity --
+    -- DEX/coin identity --
+    dex                     LowCardinality(String) COMMENT 'DEX/market namespace parsed from coin, defaults to perps',
     coin                    LowCardinality(String) COMMENT 'Trading pair/coin symbol',
 
     -- OHLC price aggregates --
@@ -50,12 +51,14 @@ CREATE TABLE IF NOT EXISTS state_ohlcv_liquidation (
 
     -- indexes --
     INDEX idx_timestamp         (timestamp)         TYPE minmax                 GRANULARITY 1,
+    INDEX idx_dex               (dex)               TYPE set(12)                GRANULARITY 1,
     INDEX idx_coin              (coin)              TYPE set(256)               GRANULARITY 1,
     INDEX idx_transactions      (transactions)      TYPE minmax                 GRANULARITY 1
 )
 ENGINE = AggregatingMergeTree
 ORDER BY (
     interval_min,
+    dex,
     coin,
     timestamp
 )
@@ -93,7 +96,8 @@ SELECT
     min(f.block_num) AS min_block_num,
     max(f.block_num) AS max_block_num,
 
-    -- trading identity --
+    -- DEX/coin identity --
+    f.dex AS dex,
     f.coin AS coin,
 
     -- OHLC --
@@ -135,7 +139,8 @@ WHERE f.price > 0 AND f.size > 0 AND f.client_order_id != ''
 GROUP BY
     -- bar interval
     interval_min,
-    -- trading identity
+    -- DEX/coin identity
+    dex,
     coin,
     -- bar beginning
     timestamp;
