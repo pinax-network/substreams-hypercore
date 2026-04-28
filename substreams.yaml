@@ -1,7 +1,7 @@
 specVersion: v0.1.0
 package:
   name: hypercore
-  version: v0.2.0
+  version: v0.2.1
   url: https://github.com/pinax-network/substreams-hypercore
   description: ClickHouse sink for Hypercore
   image: ./image.png
