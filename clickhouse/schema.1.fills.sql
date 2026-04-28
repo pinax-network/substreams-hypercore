@@ -5,6 +5,7 @@ ALTER TABLE fills
     -- fill-specific fields --
     ADD COLUMN IF NOT EXISTS user                        String,
     ADD COLUMN IF NOT EXISTS coin                        LowCardinality(String),
+    ADD COLUMN IF NOT EXISTS dex                         LowCardinality(String) MATERIALIZED dex_from_coin(coin),
     ADD COLUMN IF NOT EXISTS price                       Float64 DEFAULT 0,
     ADD COLUMN IF NOT EXISTS size                        Float64 DEFAULT 0,
     ADD COLUMN IF NOT EXISTS side                        LowCardinality(String) COMMENT 'BID or ASK',
@@ -23,16 +24,19 @@ ALTER TABLE fills
 
     -- PROJECTIONS for analytics (minute & count) --
     ADD PROJECTION IF NOT EXISTS prj_coin_count ( SELECT coin, count(), min(block_num), max(block_num), min(timestamp), max(timestamp), min(minute), max(minute) GROUP BY coin ),
+    ADD PROJECTION IF NOT EXISTS prj_dex_count ( SELECT dex, count(), min(block_num), max(block_num), min(timestamp), max(timestamp), min(minute), max(minute) GROUP BY dex ),
     ADD PROJECTION IF NOT EXISTS prj_user_count ( SELECT user, count(), min(block_num), max(block_num), min(timestamp), max(timestamp), min(minute), max(minute) GROUP BY user ),
     ADD PROJECTION IF NOT EXISTS prj_side_count ( SELECT side, count(), min(block_num), max(block_num), min(timestamp), max(timestamp), min(minute), max(minute) GROUP BY side ),
     ADD PROJECTION IF NOT EXISTS prj_direction_count ( SELECT direction, count(), min(block_num), max(block_num), min(timestamp), max(timestamp), min(minute), max(minute) GROUP BY direction ),
 
     -- minute projections --
     ADD PROJECTION IF NOT EXISTS prj_coin_by_minute ( SELECT coin, minute, count() GROUP BY coin, minute ),
+    ADD PROJECTION IF NOT EXISTS prj_dex_by_minute ( SELECT dex, minute, count() GROUP BY dex, minute ),
+    ADD PROJECTION IF NOT EXISTS prj_dex_coin_by_minute ( SELECT dex, coin, minute, count() GROUP BY dex, coin, minute ),
     ADD PROJECTION IF NOT EXISTS prj_user_by_minute ( SELECT user, minute, count() GROUP BY user, minute ),
     ADD PROJECTION IF NOT EXISTS prj_side_by_minute ( SELECT side, minute, count() GROUP BY side, minute ),
     ADD PROJECTION IF NOT EXISTS prj_direction_by_minute ( SELECT direction, minute, count() GROUP BY direction, minute ),
-    ADD PROJECTION IF NOT EXISTS prj_all_by_minute ( SELECT coin, side, direction, minute, count() GROUP BY coin, side, direction, minute );
+    ADD PROJECTION IF NOT EXISTS prj_all_by_minute ( SELECT dex, coin, side, direction, minute, count() GROUP BY dex, coin, side, direction, minute );
 
 -- Fills Liquidation table --
 -- Represents liquidation trade fills on Hypercore
@@ -46,4 +50,6 @@ ALTER TABLE fills_liquidation
 
     -- PROJECTIONS for analytics (minute & count) --
     ADD PROJECTION IF NOT EXISTS prj_liquidated_user_count ( SELECT liquidated_user, count(), min(block_num), max(block_num), min(timestamp), max(timestamp), min(minute), max(minute) GROUP BY liquidated_user ),
-    ADD PROJECTION IF NOT EXISTS prj_liquidated_user_by_minute ( SELECT liquidated_user, minute, count() GROUP BY liquidated_user, minute );
+    ADD PROJECTION IF NOT EXISTS prj_dex_liquidated_user_count ( SELECT dex, liquidated_user, count(), min(block_num), max(block_num), min(timestamp), max(timestamp), min(minute), max(minute) GROUP BY dex, liquidated_user ),
+    ADD PROJECTION IF NOT EXISTS prj_liquidated_user_by_minute ( SELECT liquidated_user, minute, count() GROUP BY liquidated_user, minute ),
+    ADD PROJECTION IF NOT EXISTS prj_dex_liquidated_user_by_minute ( SELECT dex, liquidated_user, minute, count() GROUP BY dex, liquidated_user, minute );
