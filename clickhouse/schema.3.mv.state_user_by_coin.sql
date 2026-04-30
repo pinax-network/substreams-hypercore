@@ -1,0 +1,108 @@
+-- User Leaderboard by (coin, user) --
+-- Pre-computed user trading stats per (interval_min, coin, user).
+-- Refreshed hourly via APPEND-mode refresh MV.
+--
+-- Granularity is (coin, user). Both coin-scoped and dex-scoped filters have a
+-- fast path:
+--   * coin filter — point-prefix lookup on (interval_min, coin)
+--   * dex filter  — interval scan, filter on stored `dex` column
+--
+-- The target uses ReplacingMergeTree(refresh_time) so the latest snapshot per
+-- (interval_min, coin, user) wins after merges. CH refuses non-APPEND refresh
+-- MVs targeting Replicated tables on Atomic databases, so APPEND + Replacing
+-- is the working pattern; consumers must read with FINAL.
+--
+-- Pattern mirrors `substreams-polymarket`'s `state_user`. The (coin, user)
+-- granularity (vs Polymarket's (user)) lets one MV serve coin-filtered
+-- queries directly, and `dex` filtering uses the stored `dex` column.
+--
+-- TTL bounds storage to ~3 hourly snapshots pre-merge.
+
+CREATE TABLE IF NOT EXISTS state_user_by_coin (
+    refresh_time             DateTime('UTC'),
+    interval_min             UInt32 COMMENT '0=all-time, 60=1h, 1440=1d, 10080=1w, 43200=30d',
+    coin                     LowCardinality(String),
+    dex                      LowCardinality(String) COMMENT 'derived from dex_from_coin(coin); stored for query-time filtering and response echo',
+    user                     String,
+    transactions             UInt64,
+    buys                     UInt64 COMMENT 'BID-side fill count',
+    sells                    UInt64 COMMENT 'ASK-side fill count',
+    volume_bought            Float64 COMMENT 'BID-side notional, USDC',
+    volume_sold              Float64 COMMENT 'ASK-side notional, USDC',
+    total_volume             Float64,
+    total_fees               Float64 COMMENT 'Negative when net maker rebates dominate',
+    realized_pnl             Float64,
+    total_funding            Float64 COMMENT 'Net funding — positive = received, negative = paid',
+    liquidation_fills        UInt64 COMMENT 'Count of fills with LIQUIDATED_* direction',
+    first_trade              DateTime('UTC'),
+    last_trade               DateTime('UTC')
+) ENGINE = ReplacingMergeTree(refresh_time)
+ORDER BY (interval_min, coin, user)
+TTL refresh_time + INTERVAL 3 HOUR;
+
+CREATE MATERIALIZED VIEW IF NOT EXISTS mv_refresh_state_user_by_coin
+REFRESH EVERY 1 HOUR APPEND
+TO state_user_by_coin
+AS
+WITH
+    time_periods AS (
+        SELECT 0 AS interval_min, toDateTime('1970-01-01', 'UTC') AS since
+        UNION ALL SELECT 43200, now() - INTERVAL 30 DAY
+        UNION ALL SELECT 10080, now() - INTERVAL 7 DAY
+        UNION ALL SELECT 1440,  now() - INTERVAL 1 DAY
+        UNION ALL SELECT 60,    now() - INTERVAL 1 HOUR
+    ),
+    fills_agg AS (
+        SELECT
+            tp.interval_min                                  AS interval_min,
+            f.coin                                           AS coin,
+            f.dex                                            AS dex,
+            f.user                                           AS user,
+            count()                                          AS transactions,
+            countIf(f.side = 'BID')                          AS buys,
+            countIf(f.side = 'ASK')                          AS sells,
+            sumIf(f.size * f.price, f.side = 'BID')          AS volume_bought,
+            sumIf(f.size * f.price, f.side = 'ASK')          AS volume_sold,
+            sum(f.size * f.price)                            AS total_volume,
+            sum(f.fee)                                       AS total_fees,
+            sum(f.closed_pnl_num)                            AS realized_pnl,
+            countIf(f.direction LIKE 'LIQUIDATED_%')         AS liquidation_fills,
+            min(f.fill_time)                                 AS first_trade,
+            max(f.fill_time)                                 AS last_trade
+        FROM fills f
+        CROSS JOIN time_periods tp
+        WHERE f.fill_time >= tp.since
+        GROUP BY tp.interval_min, f.coin, f.dex, f.user
+    ),
+    funding_agg AS (
+        SELECT
+            tp.interval_min                                  AS interval_min,
+            fd.coin                                          AS coin,
+            fd.user                                          AS user,
+            sum(fd.funding_amount)                           AS total_funding
+        FROM funding_deltas fd
+        CROSS JOIN time_periods tp
+        WHERE fd.event_time >= tp.since
+        GROUP BY tp.interval_min, fd.coin, fd.user
+    )
+SELECT
+    now()                                                    AS refresh_time,
+    f.interval_min                                           AS interval_min,
+    f.coin                                                   AS coin,
+    f.dex                                                    AS dex,
+    f.user                                                   AS user,
+    f.transactions                                           AS transactions,
+    f.buys                                                   AS buys,
+    f.sells                                                  AS sells,
+    f.volume_bought                                          AS volume_bought,
+    f.volume_sold                                            AS volume_sold,
+    f.total_volume                                           AS total_volume,
+    f.total_fees                                             AS total_fees,
+    f.realized_pnl                                           AS realized_pnl,
+    coalesce(g.total_funding, 0)                             AS total_funding,
+    f.liquidation_fills                                      AS liquidation_fills,
+    f.first_trade                                            AS first_trade,
+    f.last_trade                                             AS last_trade
+FROM fills_agg f
+LEFT JOIN funding_agg g USING (interval_min, coin, user)
+SETTINGS max_execution_time = 600;
