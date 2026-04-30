@@ -44,10 +44,7 @@ SELECT
     -- trade counts --
     sum(buy_count) AS buy_count,
     sum(sell_count) AS sell_count,
-    sum(transactions) AS transactions,
-
-    -- unique counts --
-    uniqMerge(uniq_user) AS uniq_user
+    sum(transactions) AS transactions
 
 FROM state_ohlcv_fills AS t
 GROUP BY

@@ -50,11 +50,7 @@ SELECT
     -- trade counts --
     sum(buy_count) AS buy_count,
     sum(sell_count) AS sell_count,
-    sum(transactions) AS transactions,
-
-    -- unique counts --
-    uniqMerge(uniq_user) AS uniq_user,
-    uniqMerge(uniq_liquidated_user) AS uniq_liquidated_user
+    sum(transactions) AS transactions
 
 FROM state_ohlcv_liquidation AS t
 GROUP BY

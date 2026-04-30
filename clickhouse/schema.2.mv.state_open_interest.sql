@@ -34,8 +34,7 @@ CREATE TABLE IF NOT EXISTS state_open_interest (
     long_positions          SimpleAggregateFunction(sum, UInt64) COMMENT 'number of long positions',
     short_positions         SimpleAggregateFunction(sum, UInt64) COMMENT 'number of short positions',
 
-    -- unique counts --
-    uniq_user               AggregateFunction(uniq, String) COMMENT 'unique user addresses in the window',
+    -- distinct user counts live in state_open_interest_uniq_user (refresh MV)
 
     -- indexes --
     INDEX idx_timestamp         (timestamp)         TYPE minmax                 GRANULARITY 1,
@@ -98,10 +97,7 @@ SELECT
     -- counts --
     count()                                                 AS funding_events,
     sum(if(is_long, 1, 0))                                  AS long_positions,
-    sum(if(is_short, 1, 0))                                 AS short_positions,
-
-    -- unique counts --
-    uniqState(f.user)                                       AS uniq_user
+    sum(if(is_short, 1, 0))                                 AS short_positions
 
 FROM funding_deltas f
 WHERE f.szi != 0
