@@ -33,10 +33,7 @@ SELECT
     -- counts --
     sum(funding_events) AS funding_events,
     sum(long_positions) AS long_positions,
-    sum(short_positions) AS short_positions,
-
-    -- unique counts --
-    uniqMerge(uniq_user) AS uniq_user
+    sum(short_positions) AS short_positions
 
 FROM state_open_interest
 GROUP BY

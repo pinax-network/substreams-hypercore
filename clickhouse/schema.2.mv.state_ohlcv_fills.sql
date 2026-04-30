@@ -40,8 +40,7 @@ CREATE TABLE IF NOT EXISTS state_ohlcv_fills (
     sell_count              SimpleAggregateFunction(sum, UInt64) COMMENT 'number of sell fills in the window',
     transactions            SimpleAggregateFunction(sum, UInt64) COMMENT 'total number of fills in the window',
 
-    -- unique counts --
-    uniq_user               AggregateFunction(uniq, String) COMMENT 'unique user addresses in the window',
+    -- distinct user counts live in state_ohlcv_fills_uniq_user (refresh MV)
 
     -- indexes --
     INDEX idx_timestamp         (timestamp)         TYPE minmax                 GRANULARITY 1,
@@ -117,10 +116,7 @@ SELECT
     -- trade counts --
     sum(if(is_side_bid, 1, 0))                              AS buy_count,
     sum(if(NOT is_side_bid, 1, 0))                          AS sell_count,
-    count()                                                 AS transactions,
-
-    -- unique counts --
-    uniqState(f.user)                                       AS uniq_user
+    count()                                                 AS transactions
 
 FROM fills f
 WHERE f.price > 0 AND f.size > 0 AND f.client_order_id != ''
@@ -193,10 +189,7 @@ SELECT
     -- trade counts --
     sum(if(is_side_bid, 1, 0))                              AS buy_count,
     sum(if(NOT is_side_bid, 1, 0))                          AS sell_count,
-    count()                                                 AS transactions,
-
-    -- unique counts --
-    uniqState(f.user)                                       AS uniq_user
+    count()                                                 AS transactions
 
 FROM fills_liquidation f
 WHERE f.price > 0 AND f.size > 0 AND f.client_order_id != ''
