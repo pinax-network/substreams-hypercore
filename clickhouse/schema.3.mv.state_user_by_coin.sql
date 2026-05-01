@@ -1,20 +1,20 @@
--- User Leaderboard by (coin, user) --
+-- User Leaderboard by (dex, coin, user) --
 -- Pre-computed user trading stats per (interval_min, coin, user).
 -- Refreshed hourly via APPEND-mode refresh MV.
 --
--- Granularity is (coin, user). Both coin-scoped and dex-scoped filters have a
--- fast path:
---   * coin filter — point-prefix lookup on (interval_min, coin)
---   * dex filter  — interval scan, filter on stored `dex` column
+-- Granularity is (coin, user). The sort key leads with `dex` so that both
+-- dex-scoped and coin-scoped filters get a fast path:
+--   * dex filter — granule prune on (interval_min, dex)
+--   * coin filter — within an interval, granules cluster by dex and a
+--     coin's dex is fixed, so per-granule minmax indexes on `coin` prune
+--     to the relevant dex range without an explicit `dex` predicate
+--   * user-only or unfiltered leaderboard — served by `state_user_leaderboard`
+--     in schema.4 (this table cannot prune on `user` cheaply)
 --
 -- The target uses ReplacingMergeTree(refresh_time) so the latest snapshot per
--- (interval_min, coin, user) wins after merges. CH refuses non-APPEND refresh
+-- (interval_min, dex, coin, user) wins after merges. CH refuses non-APPEND refresh
 -- MVs targeting Replicated tables on Atomic databases, so APPEND + Replacing
 -- is the working pattern; consumers must read with FINAL.
---
--- Pattern mirrors `substreams-polymarket`'s `state_user`. The (coin, user)
--- granularity (vs Polymarket's (user)) lets one MV serve coin-filtered
--- queries directly, and `dex` filtering uses the stored `dex` column.
 --
 -- TTL bounds storage to ~3 hourly snapshots pre-merge.
 
@@ -22,7 +22,7 @@ CREATE TABLE IF NOT EXISTS state_user_by_coin (
     refresh_time             DateTime('UTC'),
     interval_min             UInt32 COMMENT '0=all-time, 60=1h, 1440=1d, 10080=1w, 43200=30d',
     coin                     LowCardinality(String),
-    dex                      LowCardinality(String) COMMENT 'derived from dex_from_coin(coin); stored for query-time filtering and response echo',
+    dex                      LowCardinality(String) COMMENT 'derived from dex_from_coin(coin); part of sort key for fast dex-filtered queries',
     user                     String,
     transactions             UInt64,
     buys                     UInt64 COMMENT 'BID-side fill count',
@@ -37,7 +37,7 @@ CREATE TABLE IF NOT EXISTS state_user_by_coin (
     first_trade              DateTime('UTC'),
     last_trade               DateTime('UTC')
 ) ENGINE = ReplacingMergeTree(refresh_time)
-ORDER BY (interval_min, coin, user)
+ORDER BY (interval_min, dex, coin, user)
 TTL refresh_time + INTERVAL 3 HOUR;
 
 CREATE MATERIALIZED VIEW IF NOT EXISTS mv_refresh_state_user_by_coin
