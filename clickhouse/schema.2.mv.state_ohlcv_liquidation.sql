@@ -1,5 +1,10 @@
 -- OHLCV state table for liquidation fills --
--- Aggregates liquidation fill data into OHLCV candlestick format for trading analytics
+-- Aggregates actual liquidation events (LIQUIDATED_* / AUTO_DELEVERAGING)
+-- into OHLCV candlestick format for trading analytics. The upstream
+-- `fills_liquidation` table also stores counterparty rows whose direction
+-- carries the standard OPEN/CLOSE_LONG/SHORT values; those rows are
+-- excluded here so this table matches the semantics of the
+-- `/v1/hyperliquid/markets/liquidations` events endpoint.
 CREATE TABLE IF NOT EXISTS state_ohlcv_liquidation (
     -- bar interval --
     timestamp               DateTime('UTC') COMMENT 'beginning of the bar',
@@ -64,7 +69,11 @@ ORDER BY (
 COMMENT 'OHLCV aggregated liquidation fill data for trading analytics';
 
 -- Materialized view to populate state_ohlcv_liquidation from fills_liquidation table --
--- Filter by client_order_id != '' to only count initiating orders (not counterparties)
+-- Filters to actual liquidation events (LIQUIDATED_* / AUTO_DELEVERAGING).
+-- The `fills_liquidation` source table also stores counterparty rows whose
+-- direction carries standard OPEN/CLOSE_LONG/SHORT values; without the
+-- direction filter the OHLC over-counts liquidation activity and diverges
+-- from the events endpoint.
 CREATE MATERIALIZED VIEW IF NOT EXISTS mv_state_ohlcv_liquidation
 TO state_ohlcv_liquidation
 AS
@@ -130,7 +139,8 @@ SELECT
     count()                                                 AS transactions
 
 FROM fills_liquidation f
-WHERE f.price > 0 AND f.size > 0 AND f.client_order_id != ''
+WHERE f.price > 0 AND f.size > 0
+  AND (f.direction LIKE 'LIQUIDATED_%' OR f.direction = 'AUTO_DELEVERAGING')
 GROUP BY
     -- bar interval
     interval_min,
