@@ -119,7 +119,9 @@ SELECT
     count()                                                 AS transactions
 
 FROM fills f
-WHERE f.price > 0 AND f.size > 0 AND f.client_order_id != ''
+WHERE f.price > 0 AND f.size > 0
+  AND f.direction NOT LIKE 'LIQUIDATED_%'
+  AND f.direction NOT IN ('AUTO_DELEVERAGING', 'NET_CHILD_VAULTS', 'SPOT_DUST_CONVERSION')
 GROUP BY
     -- bar interval
     interval_min,
@@ -192,7 +194,9 @@ SELECT
     count()                                                 AS transactions
 
 FROM fills_liquidation f
-WHERE f.price > 0 AND f.size > 0 AND f.client_order_id != ''
+WHERE f.price > 0 AND f.size > 0
+  AND f.direction NOT LIKE 'LIQUIDATED_%'
+  AND f.direction NOT IN ('AUTO_DELEVERAGING', 'NET_CHILD_VAULTS', 'SPOT_DUST_CONVERSION')
 GROUP BY
     -- bar interval
     interval_min,
