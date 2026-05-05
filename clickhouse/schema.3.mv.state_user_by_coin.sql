@@ -14,7 +14,7 @@
 -- The target uses ReplacingMergeTree(refresh_time) so the latest snapshot per
 -- (interval_min, dex, coin, user) wins after merges. CH refuses non-APPEND refresh
 -- MVs targeting Replicated tables on Atomic databases, so APPEND + Replacing
--- is the working pattern; consumers must read with FINAL.
+-- is the working pattern. Consumers must read with FINAL.
 --
 -- TTL bounds storage to ~3 hourly snapshots pre-merge.
 
@@ -22,7 +22,7 @@ CREATE TABLE IF NOT EXISTS state_user_by_coin (
     refresh_time             DateTime('UTC'),
     interval_min             UInt32 COMMENT '0=all-time, 60=1h, 1440=1d, 10080=1w, 43200=30d',
     coin                     LowCardinality(String),
-    dex                      LowCardinality(String) COMMENT 'derived from dex_from_coin(coin); part of sort key for fast dex-filtered queries',
+    dex                      LowCardinality(String) COMMENT 'derived from dex_from_coin(coin), part of sort key for fast dex-filtered queries',
     user                     String,
     transactions             UInt64,
     buys                     UInt64 COMMENT 'BID-side fill count',

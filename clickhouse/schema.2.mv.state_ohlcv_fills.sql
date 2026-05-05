@@ -12,7 +12,7 @@ CREATE TABLE IF NOT EXISTS state_ohlcv_fills (
     max_block_num           SimpleAggregateFunction(max, UInt64) COMMENT 'last block number seen',
 
     -- DEX/coin identity --
-    dex                     LowCardinality(String) COMMENT 'DEX/market namespace parsed from coin, defaults to perps',
+    dex                     LowCardinality(String) COMMENT 'DEX/market namespace parsed from coin (: custom, # outcome, @ spot, fallback perps)',
     coin                    LowCardinality(String) COMMENT 'Trading pair/coin symbol',
 
     -- OHLC price aggregates --

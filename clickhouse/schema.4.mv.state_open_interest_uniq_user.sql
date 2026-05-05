@@ -9,13 +9,13 @@
 -- refresh ticks. Consumers read with FINAL.
 --
 -- TTL = refresh_time + 3 HOUR. Refresh runs hourly so the window holds the last
--- ~3 snapshots; if the refresh MV stops succeeding for >3 hours the table goes
+-- ~3 snapshots. If the refresh MV stops succeeding for >3 hours the table goes
 -- empty until the next successful refresh — alert on stale max(refresh_time).
 
 CREATE TABLE IF NOT EXISTS state_open_interest_uniq_user (
     refresh_time             DateTime('UTC'),
     interval_min             UInt16 COMMENT 'bar interval in minutes (1m, 5m, 10m, 30m, 1h, 4h, 1d, 1w)',
-    dex                      LowCardinality(String) COMMENT 'DEX/market namespace parsed from coin',
+    dex                      LowCardinality(String) COMMENT 'DEX/market namespace parsed from coin (: custom, # outcome, @ spot, fallback perps)',
     coin                     LowCardinality(String) COMMENT 'Trading pair/coin symbol',
     timestamp                DateTime('UTC') COMMENT 'beginning of the bar',
     uniq_user                UInt64 COMMENT 'distinct users with funding observations in the window'
