@@ -59,7 +59,7 @@ FROM state_ohlcv_fills
 GROUP BY interval_min, timestamp;
 
 -- MV: state_ohlcv_liquidation -> state_platform --
--- Same pattern but populates the liquidation slice; fills slice is zero-filled.
+-- Same pattern but populates the liquidation slice. Fills slice is zero-filled.
 -- Liquidation events also count toward `active_coins` — the HLL state from this
 -- MV merges with the fills MV's contribution.
 CREATE MATERIALIZED VIEW IF NOT EXISTS mv_state_platform_liquidation

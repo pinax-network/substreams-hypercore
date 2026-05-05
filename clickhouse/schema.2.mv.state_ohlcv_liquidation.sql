@@ -2,7 +2,7 @@
 -- Aggregates actual liquidation events (LIQUIDATED_* / AUTO_DELEVERAGING)
 -- into OHLCV candlestick format for trading analytics. The upstream
 -- `fills_liquidation` table also stores counterparty rows whose direction
--- carries the standard OPEN/CLOSE_LONG/SHORT values; those rows are
+-- carries the standard OPEN/CLOSE_LONG/SHORT values, those rows are
 -- excluded here so this table matches the semantics of the
 -- `/v1/hyperliquid/markets/liquidations` events endpoint.
 CREATE TABLE IF NOT EXISTS state_ohlcv_liquidation (
@@ -71,7 +71,7 @@ COMMENT 'OHLCV aggregated liquidation fill data for trading analytics';
 -- Materialized view to populate state_ohlcv_liquidation from fills_liquidation table --
 -- Filters to actual liquidation events (LIQUIDATED_* / AUTO_DELEVERAGING).
 -- The `fills_liquidation` source table also stores counterparty rows whose
--- direction carries standard OPEN/CLOSE_LONG/SHORT values; without the
+-- direction carries standard OPEN/CLOSE_LONG/SHORT values, without the
 -- direction filter the OHLC over-counts liquidation activity and diverges
 -- from the events endpoint.
 CREATE MATERIALIZED VIEW IF NOT EXISTS mv_state_ohlcv_liquidation

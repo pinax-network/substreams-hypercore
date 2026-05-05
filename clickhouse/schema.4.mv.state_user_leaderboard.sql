@@ -10,7 +10,7 @@
 --
 -- The sort key is `(interval_min, user)` — leaderboard mode hits the
 -- prefix for the sort, single-user profile mode is a point lookup. Filters
--- on `coin` or `dex` are not supported here; the API falls back to
+-- on `coin` or `dex` are not supported here. The API falls back to
 -- `state_user_by_coin` (schema.3) for those cases.
 --
 -- Refreshed hourly by chaining off `state_user_by_coin FINAL`. Adds up to
@@ -18,7 +18,7 @@
 -- to two hours of total lag in the worst case — acceptable for leaderboards.
 --
 -- The same APPEND + ReplacingMergeTree pattern as the rest of the
--- refresh-MV layer; consumers must read with FINAL.
+-- refresh-MV layer. Consumers must read with FINAL.
 
 CREATE TABLE IF NOT EXISTS state_user_leaderboard (
     refresh_time      DateTime('UTC'),

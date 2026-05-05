@@ -9,7 +9,7 @@
 -- refresh ticks. Consumers read with FINAL.
 --
 -- TTL = refresh_time + 3 HOUR. Refresh runs hourly so the window holds the last
--- ~3 snapshots; if the refresh MV stops succeeding for >3 hours the table goes
+-- ~3 snapshots. If the refresh MV stops succeeding for >3 hours the table goes
 -- empty until the next successful refresh — alert on stale max(refresh_time).
 
 CREATE TABLE IF NOT EXISTS state_open_interest_uniq_user (
