@@ -21,3 +21,6 @@ ALTER TABLE funding_deltas
     ADD PROJECTION IF NOT EXISTS prj_dex_coin_by_minute ( SELECT dex, coin, minute, count() GROUP BY dex, coin, minute ),
     ADD PROJECTION IF NOT EXISTS prj_dex_user_by_minute ( SELECT dex, user, minute, count() GROUP BY dex, user, minute ),
     ADD PROJECTION IF NOT EXISTS prj_dex_coin_user_by_minute ( SELECT dex, coin, user, minute, count() GROUP BY dex, coin, user, minute );
+
+ALTER TABLE funding_deltas
+    MODIFY COLUMN IF EXISTS dex                         LowCardinality(String) MATERIALIZED dex_from_coin(coin);

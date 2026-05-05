@@ -6,7 +6,7 @@
 CREATE TABLE IF NOT EXISTS state_ohlcv_liquidation_uniq_user (
     refresh_time             DateTime('UTC'),
     interval_min             UInt16 COMMENT 'bar interval in minutes (1m, 5m, 10m, 30m, 1h, 4h, 1d, 1w)',
-    dex                      LowCardinality(String) COMMENT 'DEX/market namespace parsed from coin',
+    dex                      LowCardinality(String) COMMENT 'DEX/market namespace parsed from coin (: custom, # outcome, @ spot, fallback perps)',
     coin                     LowCardinality(String) COMMENT 'Trading pair/coin symbol',
     timestamp                DateTime('UTC') COMMENT 'beginning of the bar',
     uniq_user                UInt64 COMMENT 'distinct liquidator addresses in the window',

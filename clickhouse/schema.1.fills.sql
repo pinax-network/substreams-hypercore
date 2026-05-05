@@ -38,6 +38,9 @@ ALTER TABLE fills
     ADD PROJECTION IF NOT EXISTS prj_direction_by_minute ( SELECT direction, minute, count() GROUP BY direction, minute ),
     ADD PROJECTION IF NOT EXISTS prj_all_by_minute ( SELECT dex, coin, side, direction, minute, count() GROUP BY dex, coin, side, direction, minute );
 
+ALTER TABLE fills
+    MODIFY COLUMN IF EXISTS dex                         LowCardinality(String) MATERIALIZED dex_from_coin(coin);
+
 -- Fills Liquidation table --
 -- Represents liquidation trade fills on Hypercore
 -- Only contains fills that have liquidation data
@@ -53,3 +56,6 @@ ALTER TABLE fills_liquidation
     ADD PROJECTION IF NOT EXISTS prj_dex_liquidated_user_count ( SELECT dex, liquidated_user, count(), min(block_num), max(block_num), min(timestamp), max(timestamp), min(minute), max(minute) GROUP BY dex, liquidated_user ),
     ADD PROJECTION IF NOT EXISTS prj_liquidated_user_by_minute ( SELECT liquidated_user, minute, count() GROUP BY liquidated_user, minute ),
     ADD PROJECTION IF NOT EXISTS prj_dex_liquidated_user_by_minute ( SELECT dex, liquidated_user, minute, count() GROUP BY dex, liquidated_user, minute );
+
+ALTER TABLE fills_liquidation
+    MODIFY COLUMN IF EXISTS dex                         LowCardinality(String) MATERIALIZED dex_from_coin(coin);
