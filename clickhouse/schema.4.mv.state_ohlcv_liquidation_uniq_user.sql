@@ -27,6 +27,7 @@ SELECT
     uniqExact(user) AS uniq_user,
     uniqExact(liquidated_user) AS uniq_liquidated_user
 FROM fills_liquidation
-WHERE price > 0 AND size > 0 AND client_order_id != ''
+WHERE price > 0 AND size > 0
+  AND (direction LIKE 'LIQUIDATED_%' OR direction = 'AUTO_DELEVERAGING')
 GROUP BY interval_min, dex, coin, timestamp
 SETTINGS max_execution_time = 600;

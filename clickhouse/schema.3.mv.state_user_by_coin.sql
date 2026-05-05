@@ -66,7 +66,7 @@ WITH
             sum(f.size * f.price)                            AS total_volume,
             sum(f.fee)                                       AS total_fees,
             sum(f.closed_pnl_num)                            AS realized_pnl,
-            countIf(f.direction LIKE 'LIQUIDATED_%')         AS liquidation_fills,
+            countIf(f.direction LIKE 'LIQUIDATED_%' OR f.direction = 'AUTO_DELEVERAGING') AS liquidation_fills,
             min(f.fill_time)                                 AS first_trade,
             max(f.fill_time)                                 AS last_trade
         FROM fills f

@@ -4,7 +4,8 @@
 --
 -- Source unions both regular `fills` and `fills_liquidation`, mirroring the two
 -- MVs (mv_state_ohlcv_fills + mv_state_ohlcv_fills_liquidation) that populate
--- state_ohlcv_fills with the matching client_order_id != '' filter.
+-- state_ohlcv_fills with the matching direction-exclusion filter (regular
+-- trades only — liquidations and vault internals are tracked separately).
 
 CREATE TABLE IF NOT EXISTS state_ohlcv_fills_uniq_user (
     refresh_time             DateTime('UTC'),
@@ -29,10 +30,14 @@ SELECT
     uniqExact(user) AS uniq_user
 FROM (
     SELECT fill_time, dex, coin, user FROM fills
-    WHERE price > 0 AND size > 0 AND client_order_id != ''
+    WHERE price > 0 AND size > 0
+      AND direction NOT LIKE 'LIQUIDATED_%'
+      AND direction NOT IN ('AUTO_DELEVERAGING', 'NET_CHILD_VAULTS', 'SPOT_DUST_CONVERSION')
     UNION ALL
     SELECT fill_time, dex, coin, user FROM fills_liquidation
-    WHERE price > 0 AND size > 0 AND client_order_id != ''
+    WHERE price > 0 AND size > 0
+      AND direction NOT LIKE 'LIQUIDATED_%'
+      AND direction NOT IN ('AUTO_DELEVERAGING', 'NET_CHILD_VAULTS', 'SPOT_DUST_CONVERSION')
 )
 GROUP BY interval_min, dex, coin, timestamp
 SETTINGS max_execution_time = 600;
