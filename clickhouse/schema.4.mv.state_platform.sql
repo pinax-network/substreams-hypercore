@@ -68,15 +68,18 @@ AS
 SELECT
     timestamp,
     interval_min,
-    toFloat64(0)             AS side_buy_volume,
-    toFloat64(0)             AS side_ask_volume,
-    toUInt64(0)              AS buys,
-    toUInt64(0)              AS sells,
-    toUInt64(0)              AS transactions,
-    toFloat64(0)             AS total_fees,
-    uniqState(coin)          AS active_coins,
-    sum(side_buy_volume)     AS liq_side_buy_volume,
-    sum(side_ask_volume)     AS liq_side_ask_volume,
-    sum(transactions)        AS liq_transactions
+    toFloat64(0)                                     AS side_buy_volume,
+    toFloat64(0)                                     AS side_ask_volume,
+    toUInt64(0)                                      AS buys,
+    toUInt64(0)                                      AS sells,
+    toUInt64(0)                                      AS transactions,
+    toFloat64(0)                                     AS total_fees,
+    uniqState(coin)                                  AS active_coins,
+    -- Qualify source columns to avoid alias shadowing: the aliased
+    -- `side_buy_volume = 0` / `side_ask_volume = 0` / `transactions = 0`
+    -- above would otherwise resolve here, zeroing the sums.
+    sum(state_ohlcv_liquidation.side_buy_volume)     AS liq_side_buy_volume,
+    sum(state_ohlcv_liquidation.side_ask_volume)     AS liq_side_ask_volume,
+    sum(state_ohlcv_liquidation.transactions)        AS liq_transactions
 FROM state_ohlcv_liquidation
 GROUP BY interval_min, timestamp;
