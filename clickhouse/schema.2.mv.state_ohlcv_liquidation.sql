@@ -1,9 +1,9 @@
 -- OHLCV state table for liquidation fills --
--- Aggregates actual liquidation events (LIQUIDATED_* / AUTO_DELEVERAGING)
--- into OHLCV candlestick format for trading analytics. The upstream
--- `fills_liquidation` table also stores counterparty rows whose direction
--- carries the standard OPEN/CLOSE_LONG/SHORT values, those rows are
--- excluded here so this table matches the semantics of the
+-- Aggregates the liquidated-user side of each liquidation trade into
+-- OHLCV candlestick format for trading analytics. The upstream
+-- `fills_liquidation` table also stores counterparty rows where
+-- `user != liquidated_user`; those are excluded here to avoid
+-- double-counting trade volume and to match the semantics of the
 -- `/v1/hyperliquid/markets/liquidations` events endpoint.
 CREATE TABLE IF NOT EXISTS state_ohlcv_liquidation (
     -- bar interval --
@@ -69,11 +69,17 @@ ORDER BY (
 COMMENT 'OHLCV aggregated liquidation fill data for trading analytics';
 
 -- Materialized view to populate state_ohlcv_liquidation from fills_liquidation table --
--- Filters to actual liquidation events (LIQUIDATED_* / AUTO_DELEVERAGING).
--- The `fills_liquidation` source table also stores counterparty rows whose
--- direction carries standard OPEN/CLOSE_LONG/SHORT values, without the
--- direction filter the OHLC over-counts liquidation activity and diverges
--- from the events endpoint.
+-- Filters to the liquidated user's side of each liquidation trade
+-- (`user = liquidated_user`). Hyperliquid emits regular `Close Long` /
+-- `Close Short` direction tags on most liquidated-user fills (the
+-- liquidation signal lives in the separate `liquidation` sub-object on
+-- the wire, which the substream uses to gate fills_liquidation membership).
+-- The `LIQUIDATED_*` direction variants are real but represent rare edge
+-- cases (backstop interventions, ADL, borrow liquidations) — they are
+-- caught by the same predicate because their fills also have
+-- `user = liquidated_user`. The `fills_liquidation` table also stores
+-- counterparty rows where `user != liquidated_user`; those are excluded
+-- here to avoid double-counting trade volume.
 CREATE MATERIALIZED VIEW IF NOT EXISTS mv_state_ohlcv_liquidation
 TO state_ohlcv_liquidation
 AS
@@ -140,7 +146,7 @@ SELECT
 
 FROM fills_liquidation f
 WHERE f.price > 0 AND f.size > 0
-  AND (f.direction LIKE 'LIQUIDATED_%' OR f.direction = 'AUTO_DELEVERAGING')
+  AND f.user = f.liquidated_user
 GROUP BY
     -- bar interval
     interval_min,
