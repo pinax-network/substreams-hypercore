@@ -19,7 +19,7 @@ ORDER BY (interval_min, dex, coin, timestamp)
 TTL refresh_time + INTERVAL 3 HOUR;
 
 CREATE MATERIALIZED VIEW IF NOT EXISTS mv_refresh_state_ohlcv_fills_uniq_user
-REFRESH EVERY 1 HOUR APPEND
+REFRESH EVERY 1 HOUR OFFSET 5 MINUTE APPEND
 TO state_ohlcv_fills_uniq_user
 AS
 SELECT
@@ -40,4 +40,4 @@ FROM (
       AND direction NOT IN ('AUTO_DELEVERAGING', 'NET_CHILD_VAULTS', 'SPOT_DUST_CONVERSION')
 )
 GROUP BY interval_min, dex, coin, timestamp
-SETTINGS max_execution_time = 600;
+SETTINGS max_threads = 4, max_insert_threads = 4, max_execution_time = 600;
