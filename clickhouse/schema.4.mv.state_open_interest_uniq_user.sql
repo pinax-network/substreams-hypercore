@@ -24,7 +24,7 @@ ORDER BY (interval_min, dex, coin, timestamp)
 TTL refresh_time + INTERVAL 3 HOUR;
 
 CREATE MATERIALIZED VIEW IF NOT EXISTS mv_refresh_state_open_interest_uniq_user
-REFRESH EVERY 1 HOUR OFFSET 20 MINUTE APPEND
+REFRESH EVERY 1 HOUR OFFSET 48 MINUTE APPEND
 TO state_open_interest_uniq_user
 AS
 SELECT
@@ -37,4 +37,4 @@ SELECT
 FROM funding_deltas AS f
 WHERE f.szi != 0
 GROUP BY interval_min, dex, coin, timestamp
-SETTINGS max_threads = 4, max_insert_threads = 4, max_execution_time = 600;
+SETTINGS max_threads = 4, max_insert_threads = 4, max_execution_time = 720;
