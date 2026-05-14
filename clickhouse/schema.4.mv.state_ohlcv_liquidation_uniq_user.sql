@@ -16,7 +16,7 @@ ORDER BY (interval_min, dex, coin, timestamp)
 TTL refresh_time + INTERVAL 3 HOUR;
 
 CREATE MATERIALIZED VIEW IF NOT EXISTS mv_refresh_state_ohlcv_liquidation_uniq_user
-REFRESH EVERY 1 HOUR OFFSET 12 MINUTE APPEND
+REFRESH EVERY 1 HOUR OFFSET 55 MINUTE APPEND
 TO state_ohlcv_liquidation_uniq_user
 AS
 SELECT

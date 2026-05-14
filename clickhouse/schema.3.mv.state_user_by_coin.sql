@@ -41,7 +41,7 @@ ORDER BY (interval_min, dex, coin, user)
 TTL refresh_time + INTERVAL 3 HOUR;
 
 CREATE MATERIALIZED VIEW IF NOT EXISTS mv_refresh_state_user_by_coin
-REFRESH EVERY 1 HOUR OFFSET 25 MINUTE APPEND
+REFRESH EVERY 1 HOUR OFFSET 36 MINUTE APPEND
 TO state_user_by_coin
 AS
 WITH
@@ -105,4 +105,4 @@ SELECT
     f.last_trade                                             AS last_trade
 FROM fills_agg f
 LEFT JOIN funding_agg g USING (interval_min, coin, user)
-SETTINGS max_threads = 4, max_insert_threads = 4, max_execution_time = 600;
+SETTINGS max_threads = 4, max_insert_threads = 4, max_execution_time = 720;

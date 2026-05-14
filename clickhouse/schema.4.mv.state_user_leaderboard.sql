@@ -42,7 +42,7 @@ ORDER BY (interval_min, user)
 TTL refresh_time + INTERVAL 3 HOUR;
 
 CREATE MATERIALIZED VIEW IF NOT EXISTS mv_refresh_state_user_leaderboard
-REFRESH EVERY 1 HOUR OFFSET 40 MINUTE APPEND
+REFRESH EVERY 1 HOUR OFFSET 57 MINUTE APPEND
 TO state_user_leaderboard
 AS
 SELECT
