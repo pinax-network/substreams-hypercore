@@ -1,9 +1,12 @@
 -- User Leaderboard by (dex, coin, user) --
 -- Pre-computed user trading stats per (interval_min, coin, user).
--- Refreshed hourly via APPEND-mode refresh MV.
 --
--- Granularity is (coin, user). The sort key leads with `dex` so that both
--- dex-scoped and coin-scoped filters get a fast path:
+-- Two MVs write to this table:
+--   * mv_refresh_state_user_by_coin         — hourly, intervals 60/1440/10080/43200
+--   * mv_refresh_state_user_by_coin_alltime — every 6h, interval_min = 0
+--
+-- The sort key leads with `dex` so that both dex-scoped and coin-scoped
+-- filters get a fast path:
 --   * dex filter — granule prune on (interval_min, dex)
 --   * coin filter — within an interval, granules cluster by dex and a
 --     coin's dex is fixed, so per-granule minmax indexes on `coin` prune
@@ -11,12 +14,8 @@
 --   * user-only or unfiltered leaderboard — served by `state_user_leaderboard`
 --     in schema.4 (this table cannot prune on `user` cheaply)
 --
--- The target uses ReplacingMergeTree(refresh_time) so the latest snapshot per
--- (interval_min, dex, coin, user) wins after merges. CH refuses non-APPEND refresh
--- MVs targeting Replicated tables on Atomic databases, so APPEND + Replacing
--- is the working pattern. Consumers must read with FINAL.
---
--- TTL bounds storage to ~3 hourly snapshots pre-merge.
+-- Engine: ReplacingMergeTree(refresh_time) — substreams sink rewrites to
+-- ReplicatedReplacingMergeTree on a cluster. Consumers must read with FINAL.
 
 CREATE TABLE IF NOT EXISTS state_user_by_coin (
     refresh_time             DateTime('UTC'),
@@ -38,16 +37,16 @@ CREATE TABLE IF NOT EXISTS state_user_by_coin (
     last_trade               DateTime('UTC')
 ) ENGINE = ReplacingMergeTree(refresh_time)
 ORDER BY (interval_min, dex, coin, user)
-TTL refresh_time + INTERVAL 3 HOUR;
+TTL refresh_time + INTERVAL 13 HOUR;
 
+-- Source pruned to last 30d (the longest non-zero window).
 CREATE MATERIALIZED VIEW IF NOT EXISTS mv_refresh_state_user_by_coin
-REFRESH EVERY 1 HOUR OFFSET 36 MINUTE APPEND
+REFRESH EVERY 1 HOUR OFFSET 22 MINUTE APPEND
 TO state_user_by_coin
 AS
 WITH
     time_periods AS (
-        SELECT 0 AS interval_min, toDateTime('1970-01-01', 'UTC') AS since
-        UNION ALL SELECT 43200, now() - INTERVAL 30 DAY
+        SELECT 43200 AS interval_min, now() - INTERVAL 30 DAY AS since
         UNION ALL SELECT 10080, now() - INTERVAL 7 DAY
         UNION ALL SELECT 1440,  now() - INTERVAL 1 DAY
         UNION ALL SELECT 60,    now() - INTERVAL 1 HOUR
@@ -71,7 +70,8 @@ WITH
             max(f.fill_time)                                 AS last_trade
         FROM fills f
         CROSS JOIN time_periods tp
-        WHERE f.fill_time >= tp.since
+        WHERE f.fill_time >= now() - INTERVAL 30 DAY
+          AND f.fill_time >= tp.since
         GROUP BY tp.interval_min, f.coin, f.dex, f.user
     ),
     funding_agg AS (
@@ -82,7 +82,8 @@ WITH
             sum(fd.funding_amount)                           AS total_funding
         FROM funding_deltas fd
         CROSS JOIN time_periods tp
-        WHERE fd.event_time >= tp.since
+        WHERE fd.event_time >= now() - INTERVAL 30 DAY
+          AND fd.event_time >= tp.since
         GROUP BY tp.interval_min, fd.coin, fd.user
     )
 SELECT
@@ -106,3 +107,57 @@ SELECT
 FROM fills_agg f
 LEFT JOIN funding_agg g USING (interval_min, coin, user)
 SETTINGS max_threads = 4, max_insert_threads = 4, max_execution_time = 720;
+
+CREATE MATERIALIZED VIEW IF NOT EXISTS mv_refresh_state_user_by_coin_alltime
+REFRESH EVERY 6 HOUR OFFSET 1 HOUR 42 MINUTE APPEND
+TO state_user_by_coin
+AS
+WITH
+    fills_agg AS (
+        SELECT
+            f.coin                                           AS coin,
+            f.dex                                            AS dex,
+            f.user                                           AS user,
+            count()                                          AS transactions,
+            countIf(f.side = 'BID')                          AS buys,
+            countIf(f.side = 'ASK')                          AS sells,
+            sumIf(f.size * f.price, f.side = 'BID')          AS volume_bought,
+            sumIf(f.size * f.price, f.side = 'ASK')          AS volume_sold,
+            sum(f.size * f.price)                            AS total_volume,
+            sum(f.fee)                                       AS total_fees,
+            sum(f.closed_pnl_num)                            AS realized_pnl,
+            countIf(f.direction LIKE 'LIQUIDATED_%' OR f.direction = 'AUTO_DELEVERAGING') AS liquidation_fills,
+            min(f.fill_time)                                 AS first_trade,
+            max(f.fill_time)                                 AS last_trade
+        FROM fills f
+        GROUP BY f.coin, f.dex, f.user
+    ),
+    funding_agg AS (
+        SELECT
+            fd.coin                                          AS coin,
+            fd.user                                          AS user,
+            sum(fd.funding_amount)                           AS total_funding
+        FROM funding_deltas fd
+        GROUP BY fd.coin, fd.user
+    )
+SELECT
+    now()                                                    AS refresh_time,
+    toUInt32(0)                                              AS interval_min,
+    f.coin                                                   AS coin,
+    f.dex                                                    AS dex,
+    f.user                                                   AS user,
+    f.transactions                                           AS transactions,
+    f.buys                                                   AS buys,
+    f.sells                                                  AS sells,
+    f.volume_bought                                          AS volume_bought,
+    f.volume_sold                                            AS volume_sold,
+    f.total_volume                                           AS total_volume,
+    f.total_fees                                             AS total_fees,
+    f.realized_pnl                                           AS realized_pnl,
+    coalesce(g.total_funding, 0)                             AS total_funding,
+    f.liquidation_fills                                      AS liquidation_fills,
+    f.first_trade                                            AS first_trade,
+    f.last_trade                                             AS last_trade
+FROM fills_agg f
+LEFT JOIN funding_agg g USING (coin, user)
+SETTINGS max_threads = 4, max_insert_threads = 4, max_execution_time = 1200;
