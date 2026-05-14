@@ -42,7 +42,7 @@ ORDER BY (interval_min, user)
 TTL refresh_time + INTERVAL 3 HOUR;
 
 CREATE MATERIALIZED VIEW IF NOT EXISTS mv_refresh_state_user_leaderboard
-REFRESH EVERY 1 HOUR APPEND
+REFRESH EVERY 1 HOUR OFFSET 40 MINUTE APPEND
 TO state_user_leaderboard
 AS
 SELECT
@@ -64,4 +64,4 @@ SELECT
     max(last_trade)                                          AS last_trade
 FROM state_user_by_coin FINAL
 GROUP BY interval_min, user
-SETTINGS max_execution_time = 600;
+SETTINGS max_threads = 4, max_insert_threads = 4, max_execution_time = 600;
