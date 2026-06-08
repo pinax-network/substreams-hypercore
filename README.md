@@ -361,6 +361,10 @@ message Fill {
   uint64 twap_id = 16;
   bytes client_order_id = 17;
   FillLiquidation liquidation = 18;
+  string deployer_fee = 19;
+  string builder = 20;
+  string builder_fee = 21;
+  string priority_gas = 22;
 }
 ```
 
@@ -386,6 +390,10 @@ message Fill {
 | `twap_id` | `uint64` | TWAP order identifier (0 if not TWAP) |
 | `client_order_id` | `bytes` | Client-specified order ID |
 | `liquidation` | `FillLiquidation` | Liquidation details (if applicable) |
+| `deployer_fee` | `string` | HIP-3 deployer fee paid on this fill |
+| `builder` | `string` | Builder code address (HIP-3 builder-deployed venues) |
+| `builder_fee` | `string` | Builder fee paid on this fill |
+| `priority_gas` | `string` | Priority gas paid for this fill |
 
 ### FillSide Enum
 
@@ -417,6 +425,13 @@ message Fill {
 | `TRADING_DIRECTION_SETTLEMENT` | Position settlement |
 | `TRADING_DIRECTION_NET_CHILD_VAULTS` | Net child vault positions |
 | `TRADING_DIRECTION_BACKSTOP_BORROW_LIQUIDATION` | Backstop borrow liquidation |
+| `TRADING_DIRECTION_PARTIAL_BORROW_LIQUIDATION` | Partial borrow liquidation |
+| `TRADING_DIRECTION_SPLIT_OUTCOME` | HIP-4 split: X collateral → X Yes + X No outcome shares (mint) |
+| `TRADING_DIRECTION_MERGE_OUTCOME` | HIP-4 merge: X Yes + X No → X collateral (burn) |
+| `TRADING_DIRECTION_MERGE_QUESTION` | HIP-4 question merge: X Yes of every leg → X collateral (multi-outcome) |
+| `TRADING_DIRECTION_NEGATE_OUTCOME` | HIP-4 negate: X No of outcome A → X Yes of every sibling under same question |
+
+HIP-4 directions (`SPLIT_OUTCOME`, `MERGE_OUTCOME`, `MERGE_QUESTION`, `NEGATE_OUTCOME`) and `SETTLEMENT` are not real order-book trades — they are collateral conversions and resolution payouts. They are recorded in the `fills` table for completeness, but the `state_ohlcv_fills` and `state_user_by_coin` materialized views exclude them so OHLCV bars and per-user volume aggregates reflect actual market activity.
 
 ### FillLiquidation
 

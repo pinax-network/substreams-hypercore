@@ -459,6 +459,14 @@ pub struct Fill {
     pub client_order_id: ::prost::alloc::vec::Vec<u8>,
     #[prost(message, optional, tag="18")]
     pub liquidation: ::core::option::Option<FillLiquidation>,
+    #[prost(string, tag="19")]
+    pub deployer_fee: ::prost::alloc::string::String,
+    #[prost(string, tag="20")]
+    pub builder: ::prost::alloc::string::String,
+    #[prost(string, tag="21")]
+    pub builder_fee: ::prost::alloc::string::String,
+    #[prost(string, tag="22")]
+    pub priority_gas: ::prost::alloc::string::String,
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
@@ -520,6 +528,11 @@ pub enum TradingDirection {
     Settlement = 15,
     NetChildVaults = 16,
     BackstopBorrowLiquidation = 17,
+    PartialBorrowLiquidation = 18,
+    SplitOutcome = 19,
+    MergeOutcome = 20,
+    MergeQuestion = 21,
+    NegateOutcome = 22,
 }
 impl TradingDirection {
     /// String value of the enum field names used in the ProtoBuf definition.
@@ -546,6 +559,11 @@ impl TradingDirection {
             TradingDirection::Settlement => "TRADING_DIRECTION_SETTLEMENT",
             TradingDirection::NetChildVaults => "TRADING_DIRECTION_NET_CHILD_VAULTS",
             TradingDirection::BackstopBorrowLiquidation => "TRADING_DIRECTION_BACKSTOP_BORROW_LIQUIDATION",
+            TradingDirection::PartialBorrowLiquidation => "TRADING_DIRECTION_PARTIAL_BORROW_LIQUIDATION",
+            TradingDirection::SplitOutcome => "TRADING_DIRECTION_SPLIT_OUTCOME",
+            TradingDirection::MergeOutcome => "TRADING_DIRECTION_MERGE_OUTCOME",
+            TradingDirection::MergeQuestion => "TRADING_DIRECTION_MERGE_QUESTION",
+            TradingDirection::NegateOutcome => "TRADING_DIRECTION_NEGATE_OUTCOME",
         }
     }
     /// Creates an enum from field names used in the ProtoBuf definition.
@@ -569,6 +587,11 @@ impl TradingDirection {
             "TRADING_DIRECTION_SETTLEMENT" => Some(Self::Settlement),
             "TRADING_DIRECTION_NET_CHILD_VAULTS" => Some(Self::NetChildVaults),
             "TRADING_DIRECTION_BACKSTOP_BORROW_LIQUIDATION" => Some(Self::BackstopBorrowLiquidation),
+            "TRADING_DIRECTION_PARTIAL_BORROW_LIQUIDATION" => Some(Self::PartialBorrowLiquidation),
+            "TRADING_DIRECTION_SPLIT_OUTCOME" => Some(Self::SplitOutcome),
+            "TRADING_DIRECTION_MERGE_OUTCOME" => Some(Self::MergeOutcome),
+            "TRADING_DIRECTION_MERGE_QUESTION" => Some(Self::MergeQuestion),
+            "TRADING_DIRECTION_NEGATE_OUTCOME" => Some(Self::NegateOutcome),
             _ => None,
         }
     }

@@ -1,14 +1,14 @@
 specVersion: v0.1.0
 package:
   name: hypercore_clickhouse
-  version: v0.2.2
+  version: v0.3.0
   url: https://github.com/pinax-network/substreams-hypercore
   description: Hypercore (ClickHouse)
   image: ../image.png
 
 imports:
   sql: ../spkg/substreams-sink-sql-protodefs-v1.0.7.spkg
-  db: ../spkg/hypercore-v0.2.1.spkg
+  db: ../spkg/hypercore-v0.3.0.spkg
 
 modules:
   - name: db_out

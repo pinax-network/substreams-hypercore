@@ -21,6 +21,10 @@ ALTER TABLE fills
     ADD COLUMN IF NOT EXISTS fee_token                   LowCardinality(String),
     ADD COLUMN IF NOT EXISTS twap_id                     UInt64 COMMENT 'Time-Weighted Average Price Identifier',
     ADD COLUMN IF NOT EXISTS client_order_id             String,
+    ADD COLUMN IF NOT EXISTS deployer_fee                Float64 DEFAULT 0,
+    ADD COLUMN IF NOT EXISTS builder                     LowCardinality(String),
+    ADD COLUMN IF NOT EXISTS builder_fee                 Float64 DEFAULT 0,
+    ADD COLUMN IF NOT EXISTS priority_gas                Float64 DEFAULT 0,
 
     -- PROJECTIONS for analytics (minute & count) --
     ADD PROJECTION IF NOT EXISTS prj_coin_count ( SELECT coin, count(), min(block_num), max(block_num), min(timestamp), max(timestamp), min(minute), max(minute) GROUP BY coin ),

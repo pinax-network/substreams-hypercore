@@ -30,6 +30,11 @@ enum TradingDirection {
   TRADING_DIRECTION_SETTLEMENT = 15;
   TRADING_DIRECTION_NET_CHILD_VAULTS = 16;
   TRADING_DIRECTION_BACKSTOP_BORROW_LIQUIDATION = 17;
+  TRADING_DIRECTION_PARTIAL_BORROW_LIQUIDATION = 18;
+  TRADING_DIRECTION_SPLIT_OUTCOME = 19;
+  TRADING_DIRECTION_MERGE_OUTCOME = 20;
+  TRADING_DIRECTION_MERGE_QUESTION = 21;
+  TRADING_DIRECTION_NEGATE_OUTCOME = 22;
 }
 
 message Fill {
@@ -52,6 +57,10 @@ message Fill {
   uint64 twap_id = 16;
   bytes client_order_id = 17;
   FillLiquidation liquidation = 18;
+  string deployer_fee = 19;
+  string builder = 20;
+  string builder_fee = 21;
+  string priority_gas = 22;
 }
 
 message FillLiquidation {

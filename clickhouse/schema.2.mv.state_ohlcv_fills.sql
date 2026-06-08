@@ -121,7 +121,11 @@ SELECT
 FROM fills f
 WHERE f.price > 0 AND f.size > 0
   AND f.direction NOT LIKE 'LIQUIDATED_%'
-  AND f.direction NOT IN ('AUTO_DELEVERAGING', 'NET_CHILD_VAULTS', 'SPOT_DUST_CONVERSION')
+  AND f.direction NOT IN (
+      'AUTO_DELEVERAGING', 'NET_CHILD_VAULTS', 'SPOT_DUST_CONVERSION',
+      'SETTLEMENT',
+      'SPLIT_OUTCOME', 'MERGE_OUTCOME', 'MERGE_QUESTION', 'NEGATE_OUTCOME'
+  )
 GROUP BY
     -- bar interval
     interval_min,
@@ -196,7 +200,11 @@ SELECT
 FROM fills_liquidation f
 WHERE f.price > 0 AND f.size > 0
   AND f.direction NOT LIKE 'LIQUIDATED_%'
-  AND f.direction NOT IN ('AUTO_DELEVERAGING', 'NET_CHILD_VAULTS', 'SPOT_DUST_CONVERSION')
+  AND f.direction NOT IN (
+      'AUTO_DELEVERAGING', 'NET_CHILD_VAULTS', 'SPOT_DUST_CONVERSION',
+      'SETTLEMENT',
+      'SPLIT_OUTCOME', 'MERGE_OUTCOME', 'MERGE_QUESTION', 'NEGATE_OUTCOME'
+  )
 GROUP BY
     -- bar interval
     interval_min,
