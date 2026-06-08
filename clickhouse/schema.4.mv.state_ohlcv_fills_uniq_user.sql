@@ -32,12 +32,20 @@ FROM (
     SELECT fill_time, dex, coin, user FROM fills
     WHERE price > 0 AND size > 0
       AND direction NOT LIKE 'LIQUIDATED_%'
-      AND direction NOT IN ('AUTO_DELEVERAGING', 'NET_CHILD_VAULTS', 'SPOT_DUST_CONVERSION')
+      AND direction NOT IN (
+          'AUTO_DELEVERAGING', 'NET_CHILD_VAULTS', 'SPOT_DUST_CONVERSION',
+          'SETTLEMENT',
+          'SPLIT_OUTCOME', 'MERGE_OUTCOME', 'MERGE_QUESTION', 'NEGATE_OUTCOME'
+      )
     UNION ALL
     SELECT fill_time, dex, coin, user FROM fills_liquidation
     WHERE price > 0 AND size > 0
       AND direction NOT LIKE 'LIQUIDATED_%'
-      AND direction NOT IN ('AUTO_DELEVERAGING', 'NET_CHILD_VAULTS', 'SPOT_DUST_CONVERSION')
+      AND direction NOT IN (
+          'AUTO_DELEVERAGING', 'NET_CHILD_VAULTS', 'SPOT_DUST_CONVERSION',
+          'SETTLEMENT',
+          'SPLIT_OUTCOME', 'MERGE_OUTCOME', 'MERGE_QUESTION', 'NEGATE_OUTCOME'
+      )
 )
 GROUP BY interval_min, dex, coin, timestamp
 SETTINGS max_threads = 4, max_insert_threads = 4, max_execution_time = 360;

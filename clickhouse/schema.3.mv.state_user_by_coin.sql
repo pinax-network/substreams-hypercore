@@ -72,6 +72,10 @@ WITH
         CROSS JOIN time_periods tp
         WHERE f.fill_time >= now() - INTERVAL 30 DAY
           AND f.fill_time >= tp.since
+          AND f.direction NOT IN (
+              'SETTLEMENT',
+              'SPLIT_OUTCOME', 'MERGE_OUTCOME', 'MERGE_QUESTION', 'NEGATE_OUTCOME'
+          )
         GROUP BY tp.interval_min, f.coin, f.dex, f.user
     ),
     funding_agg AS (
@@ -130,6 +134,10 @@ WITH
             min(f.fill_time)                                 AS first_trade,
             max(f.fill_time)                                 AS last_trade
         FROM fills f
+        WHERE f.direction NOT IN (
+            'SETTLEMENT',
+            'SPLIT_OUTCOME', 'MERGE_OUTCOME', 'MERGE_QUESTION', 'NEGATE_OUTCOME'
+        )
         GROUP BY f.coin, f.dex, f.user
     ),
     funding_agg AS (

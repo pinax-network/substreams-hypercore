@@ -57,6 +57,10 @@ fn process_fill(tables: &mut Tables, clock: &Clock, index: usize, fill: &Fill, t
     row.set("fee_token", &fill.fee_token);
     row.set("twap_id", fill.twap_id);
     row.set("client_order_id", client_order_id);
+    set_numeric_field(row, "deployer_fee", &fill.deployer_fee);
+    row.set("builder", &fill.builder);
+    set_numeric_field(row, "builder_fee", &fill.builder_fee);
+    set_numeric_field(row, "priority_gas", &fill.priority_gas);
 
     // Liquidation fields
     if let Some(liq) = &fill.liquidation {
@@ -104,6 +108,71 @@ fn trading_direction_to_string(direction: i32) -> &'static str {
         Ok(TradingDirection::Settlement) => "SETTLEMENT",
         Ok(TradingDirection::NetChildVaults) => "NET_CHILD_VAULTS",
         Ok(TradingDirection::BackstopBorrowLiquidation) => "BACKSTOP_BORROW_LIQUIDATION",
+        Ok(TradingDirection::PartialBorrowLiquidation) => "PARTIAL_BORROW_LIQUIDATION",
+        Ok(TradingDirection::SplitOutcome) => "SPLIT_OUTCOME",
+        Ok(TradingDirection::MergeOutcome) => "MERGE_OUTCOME",
+        Ok(TradingDirection::MergeQuestion) => "MERGE_QUESTION",
+        Ok(TradingDirection::NegateOutcome) => "NEGATE_OUTCOME",
         _ => "UNSPECIFIED",
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn every_known_direction_maps_to_a_named_string() {
+        // The substreams enum must round-trip every value firehose-hypercore can
+        // emit. A new variant added to the proto without a match arm here would
+        // silently land in CH as `UNSPECIFIED` — exactly the regression that
+        // produced ~286K mis-classified outcome fills before v0.3.0.
+        let cases: &[(i32, &str)] = &[
+            (TradingDirection::Buy as i32, "BUY"),
+            (TradingDirection::Sell as i32, "SELL"),
+            (TradingDirection::OpenLong as i32, "OPEN_LONG"),
+            (TradingDirection::CloseLong as i32, "CLOSE_LONG"),
+            (TradingDirection::OpenShort as i32, "OPEN_SHORT"),
+            (TradingDirection::CloseShort as i32, "CLOSE_SHORT"),
+            (TradingDirection::LongToShort as i32, "LONG_TO_SHORT"),
+            (TradingDirection::ShortToLong as i32, "SHORT_TO_LONG"),
+            (TradingDirection::SpotDustConversion as i32, "SPOT_DUST_CONVERSION"),
+            (TradingDirection::LiquidatedCrossLong as i32, "LIQUIDATED_CROSS_LONG"),
+            (TradingDirection::LiquidatedCrossShort as i32, "LIQUIDATED_CROSS_SHORT"),
+            (TradingDirection::LiquidatedIsolatedLong as i32, "LIQUIDATED_ISOLATED_LONG"),
+            (TradingDirection::LiquidatedIsolatedShort as i32, "LIQUIDATED_ISOLATED_SHORT"),
+            (TradingDirection::AutoDeleveraging as i32, "AUTO_DELEVERAGING"),
+            (TradingDirection::Settlement as i32, "SETTLEMENT"),
+            (TradingDirection::NetChildVaults as i32, "NET_CHILD_VAULTS"),
+            (TradingDirection::BackstopBorrowLiquidation as i32, "BACKSTOP_BORROW_LIQUIDATION"),
+            (TradingDirection::PartialBorrowLiquidation as i32, "PARTIAL_BORROW_LIQUIDATION"),
+            (TradingDirection::SplitOutcome as i32, "SPLIT_OUTCOME"),
+            (TradingDirection::MergeOutcome as i32, "MERGE_OUTCOME"),
+            (TradingDirection::MergeQuestion as i32, "MERGE_QUESTION"),
+            (TradingDirection::NegateOutcome as i32, "NEGATE_OUTCOME"),
+        ];
+        for (value, expected) in cases {
+            assert_eq!(
+                trading_direction_to_string(*value),
+                *expected,
+                "TradingDirection={} mapped to wrong string",
+                value
+            );
+        }
+    }
+
+    #[test]
+    fn unspecified_and_unknown_directions_fall_back() {
+        assert_eq!(trading_direction_to_string(0), "UNSPECIFIED");
+        assert_eq!(trading_direction_to_string(9999), "UNSPECIFIED");
+        assert_eq!(trading_direction_to_string(-1), "UNSPECIFIED");
+    }
+
+    #[test]
+    fn fill_side_mapping() {
+        assert_eq!(fill_side_to_string(FillSide::Ask as i32), "ASK");
+        assert_eq!(fill_side_to_string(FillSide::Buy as i32), "BID");
+        assert_eq!(fill_side_to_string(FillSide::Unspecified as i32), "UNSPECIFIED");
+        assert_eq!(fill_side_to_string(9999), "UNSPECIFIED");
     }
 }
