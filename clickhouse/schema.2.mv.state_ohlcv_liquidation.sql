@@ -2,7 +2,7 @@
 -- Aggregates the liquidated-user side of each liquidation trade into
 -- OHLCV candlestick format for trading analytics. The upstream
 -- `fills_liquidation` table also stores counterparty rows where
--- `user != liquidated_user`; those are excluded here to avoid
+-- `user != liquidated_user`, those are excluded here to avoid
 -- double-counting trade volume and to match the semantics of the
 -- `/v1/hyperliquid/markets/liquidations` events endpoint.
 CREATE TABLE IF NOT EXISTS state_ohlcv_liquidation (
@@ -78,7 +78,7 @@ COMMENT 'OHLCV aggregated liquidation fill data for trading analytics';
 -- cases (backstop interventions, ADL, borrow liquidations) — they are
 -- caught by the same predicate because their fills also have
 -- `user = liquidated_user`. The `fills_liquidation` table also stores
--- counterparty rows where `user != liquidated_user`; those are excluded
+-- counterparty rows where `user != liquidated_user`, those are excluded
 -- here to avoid double-counting trade volume.
 CREATE MATERIALIZED VIEW IF NOT EXISTS mv_state_ohlcv_liquidation
 TO state_ohlcv_liquidation
