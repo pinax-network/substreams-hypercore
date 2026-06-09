@@ -431,7 +431,7 @@ message Fill {
 | `TRADING_DIRECTION_MERGE_QUESTION` | HIP-4 question merge: X Yes of every leg → X collateral (multi-outcome) |
 | `TRADING_DIRECTION_NEGATE_OUTCOME` | HIP-4 negate: X No of outcome A → X Yes of every sibling under same question |
 
-HIP-4 directions (`SPLIT_OUTCOME`, `MERGE_OUTCOME`, `MERGE_QUESTION`, `NEGATE_OUTCOME`) and `SETTLEMENT` are not real order-book trades — they are collateral conversions and resolution payouts. They are recorded in the `fills` table for completeness, but the `state_ohlcv_fills` and `state_user_by_coin` materialized views exclude them so OHLCV bars and per-user volume aggregates reflect actual market activity.
+HIP-4 directions (`SPLIT_OUTCOME`, `MERGE_OUTCOME`, `MERGE_QUESTION`, `NEGATE_OUTCOME`) are outcome-share composition operations on `#N` coins. As of **v0.4.0** these — along with all other fills on `#`-prefixed coins — are skipped here and processed by [substreams-hyperliquid-outcomes](https://github.com/pinax-network/substreams-hyperliquid-outcomes). `SETTLEMENT` still applies to non-outcome perp position settlements and remains recorded in this package's `fills` table; the `state_ohlcv_fills` and `state_user_by_coin` materialized views continue to exclude it (and the four HIP-4 directions, which never reach the table) so OHLCV bars and per-user volume aggregates reflect actual market activity.
 
 ### FillLiquidation
 

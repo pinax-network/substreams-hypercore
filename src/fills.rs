@@ -5,8 +5,23 @@ use substreams_database_change::tables::Tables;
 
 use crate::{event_key, parse_f64, set_event_metadata, set_numeric_field};
 
+/// HIP-4 outcome markets (`#<outcome_id*10+side>`) are owned by
+/// substreams-hyperliquid-outcomes. The new package consumes the same firehose
+/// stream and writes outcome fills to a dedicated database, so we skip them
+/// here to avoid double-writes during and after the carve-out cutover.
+fn is_outcome_coin(coin: &str) -> bool {
+    coin.starts_with('#')
+}
+
 pub fn process_fills(tables: &mut Tables, clock: &Clock, block: &Block) {
     for (index, fill) in block.fills.iter().enumerate() {
+        // Filter runs before the liquidation branch so an outcome fill carrying
+        // a `liquidation` sub-message is also skipped — outcomes don't have
+        // liquidations under HIP-4 today, but the order keeps the carve-out
+        // total even if HL changes that.
+        if is_outcome_coin(&fill.coin) {
+            continue;
+        }
         if fill.liquidation.is_some() {
             // If there's liquidation data, write to fills_liquidation table
             process_fill(tables, clock, index, fill, "fills_liquidation");
@@ -174,5 +189,34 @@ mod tests {
         assert_eq!(fill_side_to_string(FillSide::Buy as i32), "BID");
         assert_eq!(fill_side_to_string(FillSide::Unspecified as i32), "UNSPECIFIED");
         assert_eq!(fill_side_to_string(9999), "UNSPECIFIED");
+    }
+
+    #[test]
+    fn outcome_coin_filter_matches_hash_prefix() {
+        // Every `#`-prefixed coin belongs to substreams-hyperliquid-outcomes.
+        // We don't validate the digit shape here — the outcomes package enforces
+        // strict `#<digits>` + `side ∈ {0, 1}`. Malformed `#`-prefixed coins are
+        // dropped by both sinks rather than landing as a phantom outcome 0.
+        assert!(is_outcome_coin("#0"));
+        assert!(is_outcome_coin("#1"));
+        assert!(is_outcome_coin("#1420"));
+        assert!(is_outcome_coin("#")); // bare `#` — still skipped here
+        assert!(is_outcome_coin("#abc")); // non-digit tail — still skipped here
+
+        // The other three HL coin namespaces pass through to normal processing:
+        // perp (plain symbol), spot (`@N`), and custom dex (`prefix:COIN`).
+        assert!(!is_outcome_coin("BTC"));
+        assert!(!is_outcome_coin("XMR"));
+        assert!(!is_outcome_coin("@107"));
+        assert!(!is_outcome_coin("xyz:WHEAT"));
+        assert!(!is_outcome_coin("xyz:SKHX"));
+        assert!(!is_outcome_coin("cash:TSLA"));
+        assert!(!is_outcome_coin(""));
+
+        // `#` matters only at the very start — embedded `#` does not signal an
+        // outcome, so a hypothetical custom-dex coin like `xyz:#foo` passes
+        // through.
+        assert!(!is_outcome_coin("xyz:#foo"));
+        assert!(!is_outcome_coin("BTC#1"));
     }
 }
