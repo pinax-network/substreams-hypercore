@@ -83,3 +83,27 @@ SELECT
     sum(state_ohlcv_liquidation.transactions)        AS liq_transactions
 FROM state_ohlcv_liquidation
 GROUP BY interval_min, timestamp;
+
+-- MV: state_ohlcv_outcomes -> state_platform --
+-- Outcome volume is probability-denominated `size × price` against USDC
+-- collateral, so it adds cleanly into the platform-wide USD-equivalent total.
+-- Liquidation slice stays zero (outcomes are fully collateralized — no
+-- liquidations). Same shape as mv_state_platform_fills.
+CREATE MATERIALIZED VIEW IF NOT EXISTS mv_state_platform_outcomes
+TO state_platform
+AS
+SELECT
+    timestamp,
+    interval_min,
+    sum(side_buy_volume)     AS side_buy_volume,
+    sum(side_ask_volume)     AS side_ask_volume,
+    sum(buy_count)           AS buys,
+    sum(sell_count)          AS sells,
+    sum(transactions)        AS transactions,
+    sum(total_fees)          AS total_fees,
+    uniqState(coin)          AS active_coins,
+    toFloat64(0)             AS liq_side_buy_volume,
+    toFloat64(0)             AS liq_side_ask_volume,
+    toUInt64(0)              AS liq_transactions
+FROM state_ohlcv_outcomes
+GROUP BY interval_min, timestamp;
