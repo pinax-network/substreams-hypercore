@@ -5,6 +5,13 @@
 --   * mv_refresh_state_user_by_coin         — hourly, intervals 60/1440/10080/43200
 --   * mv_refresh_state_user_by_coin_alltime — every 6h, interval_min = 0
 --
+-- Sources: `fills UNION ALL outcome_fills`. The two tables share the
+-- template event schema; outcome rows arrive with `dex='outcome'` (from
+-- the MATERIALIZED `dex_from_coin(coin)` on `outcome_fills`). Outcome-only
+-- direction tags (SETTLEMENT, SPLIT/MERGE/NEGATE/MERGE_QUESTION) are
+-- excluded from the aggregate by the WHERE filter — they describe
+-- collateral movements rather than trades.
+--
 -- The sort key leads with `dex` so that both dex-scoped and coin-scoped
 -- filters get a fast path:
 --   * dex filter — granule prune on (interval_min, dex)
@@ -51,6 +58,17 @@ WITH
         UNION ALL SELECT 1440,  now() - INTERVAL 1 DAY
         UNION ALL SELECT 60,    now() - INTERVAL 1 HOUR
     ),
+    all_fills AS (
+        SELECT
+            fill_time, coin, dex, user, side, size, price, fee, closed_pnl_num, direction
+        FROM fills
+        WHERE fill_time >= now() - INTERVAL 30 DAY
+        UNION ALL
+        SELECT
+            fill_time, coin, dex, user, side, size, price, fee, closed_pnl_num, direction
+        FROM outcome_fills
+        WHERE fill_time >= now() - INTERVAL 30 DAY
+    ),
     fills_agg AS (
         SELECT
             tp.interval_min                                  AS interval_min,
@@ -68,10 +86,9 @@ WITH
             countIf(f.direction LIKE 'LIQUIDATED_%' OR f.direction = 'AUTO_DELEVERAGING') AS liquidation_fills,
             min(f.fill_time)                                 AS first_trade,
             max(f.fill_time)                                 AS last_trade
-        FROM fills f
+        FROM all_fills f
         CROSS JOIN time_periods tp
-        WHERE f.fill_time >= now() - INTERVAL 30 DAY
-          AND f.fill_time >= tp.since
+        WHERE f.fill_time >= tp.since
           AND f.direction NOT IN (
               'SETTLEMENT',
               'SPLIT_OUTCOME', 'MERGE_OUTCOME', 'MERGE_QUESTION', 'NEGATE_OUTCOME'
@@ -117,6 +134,11 @@ REFRESH EVERY 6 HOUR OFFSET 1 HOUR 42 MINUTE APPEND
 TO state_user_by_coin
 AS
 WITH
+    all_fills AS (
+        SELECT fill_time, coin, dex, user, side, size, price, fee, closed_pnl_num, direction FROM fills
+        UNION ALL
+        SELECT fill_time, coin, dex, user, side, size, price, fee, closed_pnl_num, direction FROM outcome_fills
+    ),
     fills_agg AS (
         SELECT
             f.coin                                           AS coin,
@@ -133,7 +155,7 @@ WITH
             countIf(f.direction LIKE 'LIQUIDATED_%' OR f.direction = 'AUTO_DELEVERAGING') AS liquidation_fills,
             min(f.fill_time)                                 AS first_trade,
             max(f.fill_time)                                 AS last_trade
-        FROM fills f
+        FROM all_fills f
         WHERE f.direction NOT IN (
             'SETTLEMENT',
             'SPLIT_OUTCOME', 'MERGE_OUTCOME', 'MERGE_QUESTION', 'NEGATE_OUTCOME'
