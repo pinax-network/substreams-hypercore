@@ -28,28 +28,28 @@ SELECT
     quantileDeterministicMerge(0.05)(mark_px_quantile) AS mark_px_low,
     argMaxMerge(mark_px_close) AS mark_px_close,
 
-    -- volume by side --
+    -- volume by side (liquidated-user only — directional via the source filter) --
     sum(t.side_buy_volume) AS side_buy_volume,
     sum(t.side_ask_volume) AS side_ask_volume,
 
-    -- volume by direction --
-    sum(direction_buy_volume) AS direction_buy_volume,
-    sum(direction_sell_volume) AS direction_sell_volume,
+    -- aggressor (taker) directional volume --
+    sum(t.taker_buy_volume) AS taker_buy_volume,
+    sum(t.taker_sell_volume) AS taker_sell_volume,
+
+    -- volume by perp direction --
     sum(open_long_volume) AS open_long_volume,
     sum(close_long_volume) AS close_long_volume,
     sum(open_short_volume) AS open_short_volume,
     sum(close_short_volume) AS close_short_volume,
 
-    -- derived volume --
-    sum(t.side_buy_volume) + sum(t.side_ask_volume) AS gross_volume,
-    sum(t.side_buy_volume) - sum(t.side_ask_volume) AS net_volume,
+    -- derived from aggressor directional volume --
+    sum(t.taker_buy_volume) + sum(t.taker_sell_volume) AS gross_volume,
+    sum(t.taker_buy_volume) - sum(t.taker_sell_volume) AS net_volume,
 
     -- fees --
     sum(total_fees) AS total_fees,
 
-    -- trade counts --
-    sum(buy_count) AS buy_count,
-    sum(sell_count) AS sell_count,
+    -- count of liquidation events --
     sum(transactions) AS transactions
 
 FROM state_ohlcv_liquidation AS t

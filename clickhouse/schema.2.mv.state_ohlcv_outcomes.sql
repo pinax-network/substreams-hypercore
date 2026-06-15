@@ -20,11 +20,12 @@ CREATE TABLE IF NOT EXISTS state_ohlcv_outcomes (
     side_buy_volume         SimpleAggregateFunction(sum, Float64) COMMENT 'total bid-side volume in the window',
     side_ask_volume         SimpleAggregateFunction(sum, Float64) COMMENT 'total ask-side volume in the window',
 
+    taker_buy_volume        SimpleAggregateFunction(sum, Float64) COMMENT 'aggressor BUY notional (crossed taker hit the ask)',
+    taker_sell_volume       SimpleAggregateFunction(sum, Float64) COMMENT 'aggressor SELL notional (crossed taker hit the bid)',
+
     total_fees              SimpleAggregateFunction(sum, Float64),
 
-    buy_count               SimpleAggregateFunction(sum, UInt64),
-    sell_count              SimpleAggregateFunction(sum, UInt64),
-    transactions            SimpleAggregateFunction(sum, UInt64),
+    transactions            SimpleAggregateFunction(sum, UInt64) COMMENT 'true match count in the window (one row per taker)',
 
     INDEX idx_timestamp         (timestamp)         TYPE minmax    GRANULARITY 1,
     INDEX idx_coin              (coin)              TYPE set(256)  GRANULARITY 1,
@@ -63,11 +64,12 @@ SELECT
     sum(if(is_side_bid, f.price * f.size, 0))               AS side_buy_volume,
     sum(if(NOT is_side_bid, f.price * f.size, 0))           AS side_ask_volume,
 
+    sum(if(f.crossed AND is_side_bid, f.price * f.size, 0))     AS taker_buy_volume,
+    sum(if(f.crossed AND NOT is_side_bid, f.price * f.size, 0)) AS taker_sell_volume,
+
     sum(f.fee)                                              AS total_fees,
 
-    sum(if(is_side_bid, 1, 0))                              AS buy_count,
-    sum(if(NOT is_side_bid, 1, 0))                          AS sell_count,
-    count()                                                 AS transactions
+    sum(if(f.crossed, 1, 0))                                AS transactions
 
 FROM outcome_fills f
 WHERE f.price > 0 AND f.size > 0

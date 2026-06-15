@@ -20,13 +20,15 @@ CREATE TABLE IF NOT EXISTS state_ohlcv_fills (
     quantile                AggregateFunction(quantileDeterministic, Float64, UInt64) COMMENT 'quantile price in the window (use 0.95 for high, 0.05 for low)',
     close                   AggregateFunction(argMax, Float64, UInt64) COMMENT 'closing price in the window',
 
-    -- volume by side --
-    side_buy_volume         SimpleAggregateFunction(sum, Float64) COMMENT 'total bid-side volume in the window',
-    side_ask_volume         SimpleAggregateFunction(sum, Float64) COMMENT 'total ask side volume in the window',
+    -- volume by side (each side equals true total — every match emits one BID-side and one ASK-side row) --
+    side_buy_volume         SimpleAggregateFunction(sum, Float64) COMMENT 'bid-side fill notional; equals total volume in the window',
+    side_ask_volume         SimpleAggregateFunction(sum, Float64) COMMENT 'ask-side fill notional; equals total volume in the window',
 
-    -- volume by direction --
-    direction_buy_volume    SimpleAggregateFunction(sum, Float64) COMMENT 'total direction=BUY volume in the window',
-    direction_sell_volume   SimpleAggregateFunction(sum, Float64) COMMENT 'total direction=SELL volume in the window',
+    -- volume by aggressor (taker) — directional pressure signal --
+    taker_buy_volume        SimpleAggregateFunction(sum, Float64) COMMENT 'aggressor BUY notional (crossed taker hit the ask)',
+    taker_sell_volume       SimpleAggregateFunction(sum, Float64) COMMENT 'aggressor SELL notional (crossed taker hit the bid)',
+
+    -- volume by perp direction --
     open_long_volume        SimpleAggregateFunction(sum, Float64) COMMENT 'total open long volume in the window',
     close_long_volume       SimpleAggregateFunction(sum, Float64) COMMENT 'total close long volume in the window',
     open_short_volume       SimpleAggregateFunction(sum, Float64) COMMENT 'total open short volume in the window',
@@ -36,9 +38,7 @@ CREATE TABLE IF NOT EXISTS state_ohlcv_fills (
     total_fees              SimpleAggregateFunction(sum, Float64) COMMENT 'total fees collected in the window',
 
     -- trade counts --
-    buy_count               SimpleAggregateFunction(sum, UInt64) COMMENT 'number of bid-side fills in the window',
-    sell_count              SimpleAggregateFunction(sum, UInt64) COMMENT 'number of sell fills in the window',
-    transactions            SimpleAggregateFunction(sum, UInt64) COMMENT 'total number of fills in the window',
+    transactions            SimpleAggregateFunction(sum, UInt64) COMMENT 'true match count in the window (one row per taker)',
 
     -- distinct user counts live in state_ohlcv_fills_uniq_user (refresh MV)
 
@@ -70,9 +70,7 @@ WITH
     -- determine side --
     (side IN ('BUY', 'BID')) AS is_side_bid,
 
-    -- determine direction --
-    (direction = 'BUY') AS is_direction_buy,
-    (direction = 'SELL') AS is_direction_sell,
+    -- perp position transitions --
     (direction = 'OPEN_LONG') AS is_open_long,
     (direction = 'CLOSE_LONG') AS is_close_long,
     (direction = 'OPEN_SHORT') AS is_open_short,
@@ -98,13 +96,15 @@ SELECT
     quantileDeterministicState(f.price, f.block_num)        AS quantile,
     argMaxState(f.price, f.block_num)                       AS close,
 
-    -- volume by side --
+    -- volume by side (each side = true total: every match emits one BID + one ASK row) --
     sum(if(is_side_bid, f.price * f.size, 0))               AS side_buy_volume,
     sum(if(NOT is_side_bid, f.price * f.size, 0))           AS side_ask_volume,
 
-    -- volume by direction --
-    sum(if(is_direction_buy, f.price * f.size, 0))          AS direction_buy_volume,
-    sum(if(is_direction_sell, f.price * f.size, 0))         AS direction_sell_volume,
+    -- aggressor flow (only the crossed taker contributes, no double-emission) --
+    sum(if(f.crossed AND is_side_bid, f.price * f.size, 0))     AS taker_buy_volume,
+    sum(if(f.crossed AND NOT is_side_bid, f.price * f.size, 0)) AS taker_sell_volume,
+
+    -- volume by perp direction --
     sum(if(is_open_long, f.price * f.size, 0))              AS open_long_volume,
     sum(if(is_close_long, f.price * f.size, 0))             AS close_long_volume,
     sum(if(is_open_short, f.price * f.size, 0))             AS open_short_volume,
@@ -113,10 +113,8 @@ SELECT
     -- fees --
     sum(f.fee)                                              AS total_fees,
 
-    -- trade counts --
-    sum(if(is_side_bid, 1, 0))                              AS buy_count,
-    sum(if(NOT is_side_bid, 1, 0))                          AS sell_count,
-    count()                                                 AS transactions
+    -- true match count: count only the crossed taker side --
+    sum(if(f.crossed, 1, 0))                                AS transactions
 
 FROM fills f
 WHERE f.price > 0 AND f.size > 0
@@ -149,9 +147,7 @@ WITH
     -- determine side --
     (side IN ('BUY', 'BID')) AS is_side_bid,
 
-    -- determine direction --
-    (direction = 'BUY') AS is_direction_buy,
-    (direction = 'SELL') AS is_direction_sell,
+    -- perp position transitions --
     (direction = 'OPEN_LONG') AS is_open_long,
     (direction = 'CLOSE_LONG') AS is_close_long,
     (direction = 'OPEN_SHORT') AS is_open_short,
@@ -181,9 +177,11 @@ SELECT
     sum(if(is_side_bid, f.price * f.size, 0))               AS side_buy_volume,
     sum(if(NOT is_side_bid, f.price * f.size, 0))           AS side_ask_volume,
 
-    -- volume by direction --
-    sum(if(is_direction_buy, f.price * f.size, 0))          AS direction_buy_volume,
-    sum(if(is_direction_sell, f.price * f.size, 0))         AS direction_sell_volume,
+    -- aggressor flow --
+    sum(if(f.crossed AND is_side_bid, f.price * f.size, 0))     AS taker_buy_volume,
+    sum(if(f.crossed AND NOT is_side_bid, f.price * f.size, 0)) AS taker_sell_volume,
+
+    -- volume by perp direction --
     sum(if(is_open_long, f.price * f.size, 0))              AS open_long_volume,
     sum(if(is_close_long, f.price * f.size, 0))             AS close_long_volume,
     sum(if(is_open_short, f.price * f.size, 0))             AS open_short_volume,
@@ -192,10 +190,8 @@ SELECT
     -- fees --
     sum(f.fee)                                              AS total_fees,
 
-    -- trade counts --
-    sum(if(is_side_bid, 1, 0))                              AS buy_count,
-    sum(if(NOT is_side_bid, 1, 0))                          AS sell_count,
-    count()                                                 AS transactions
+    -- true match count --
+    sum(if(f.crossed, 1, 0))                                AS transactions
 
 FROM fills_liquidation f
 WHERE f.price > 0 AND f.size > 0
