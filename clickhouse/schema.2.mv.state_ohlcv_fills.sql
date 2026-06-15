@@ -21,8 +21,8 @@ CREATE TABLE IF NOT EXISTS state_ohlcv_fills (
     close                   AggregateFunction(argMax, Float64, UInt64) COMMENT 'closing price in the window',
 
     -- volume by side (each side equals true total — every match emits one BID-side and one ASK-side row) --
-    side_buy_volume         SimpleAggregateFunction(sum, Float64) COMMENT 'bid-side fill notional; equals total volume in the window',
-    side_ask_volume         SimpleAggregateFunction(sum, Float64) COMMENT 'ask-side fill notional; equals total volume in the window',
+    side_buy_volume         SimpleAggregateFunction(sum, Float64) COMMENT 'bid-side fill notional (equals total window volume)',
+    side_ask_volume         SimpleAggregateFunction(sum, Float64) COMMENT 'ask-side fill notional (equals total window volume)',
 
     -- volume by aggressor (taker) — directional pressure signal --
     taker_buy_volume        SimpleAggregateFunction(sum, Float64) COMMENT 'aggressor BUY notional (crossed taker hit the ask)',
