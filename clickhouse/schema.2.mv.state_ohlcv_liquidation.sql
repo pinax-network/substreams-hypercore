@@ -48,7 +48,7 @@ CREATE TABLE IF NOT EXISTS state_ohlcv_liquidation (
     total_fees              SimpleAggregateFunction(sum, Float64) COMMENT 'total fees collected in the window',
 
     -- trade counts --
-    transactions            SimpleAggregateFunction(sum, UInt64) COMMENT 'liquidated-user fill count (one per liquidation event)',
+    transactions            SimpleAggregateFunction(sum, UInt64) COMMENT 'true match count (taker-side, one row per liquidation)',
 
     -- distinct user counts (uniq_user, uniq_liquidated_user) live in
     -- state_ohlcv_liquidation_uniq_user (refresh MV)
@@ -139,8 +139,8 @@ SELECT
     -- fees --
     sum(f.fee)                                              AS total_fees,
 
-    -- trade counts (single-perspective via user = liquidated_user filter) --
-    count()                                                 AS transactions
+    -- true match count (taker side, matches fills/outcomes semantic) --
+    sum(if(f.crossed, 1, 0))                                AS transactions
 
 FROM fills_liquidation f
 WHERE f.price > 0 AND f.size > 0
