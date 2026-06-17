@@ -47,21 +47,21 @@ TO state_user_leaderboard
 AS
 SELECT
     now()                                                    AS refresh_time,
-    interval_min                                             AS interval_min,
-    user                                                     AS user,
-    sum(transactions)                                        AS transactions,
-    sum(buys)                                                AS buys,
-    sum(sells)                                               AS sells,
-    sum(volume_bought)                                       AS volume_bought,
-    sum(volume_sold)                                         AS volume_sold,
-    sum(total_volume)                                        AS total_volume,
-    sum(total_fees)                                          AS total_fees,
-    sum(realized_pnl)                                        AS realized_pnl,
-    sum(total_funding)                                       AS total_funding,
-    sum(liquidation_fills)                                   AS liquidation_fills,
-    countIf(transactions > 0)                                AS coins_traded,
-    min(first_trade)                                         AS first_trade,
-    max(last_trade)                                          AS last_trade
-FROM state_user_by_coin FINAL
-GROUP BY interval_min, user
+    s.interval_min                                           AS interval_min,
+    s.user                                                   AS user,
+    sum(s.transactions)                                      AS transactions,
+    sum(s.buys)                                              AS buys,
+    sum(s.sells)                                             AS sells,
+    sum(s.volume_bought)                                     AS volume_bought,
+    sum(s.volume_sold)                                       AS volume_sold,
+    sum(s.total_volume)                                      AS total_volume,
+    sum(s.total_fees)                                        AS total_fees,
+    sum(s.realized_pnl)                                      AS realized_pnl,
+    sum(s.total_funding)                                     AS total_funding,
+    sum(s.liquidation_fills)                                 AS liquidation_fills,
+    countIf(s.transactions > 0)                              AS coins_traded,
+    min(s.first_trade)                                       AS first_trade,
+    max(s.last_trade)                                        AS last_trade
+FROM state_user_by_coin AS s FINAL
+GROUP BY s.interval_min, s.user
 SETTINGS max_threads = 4, max_insert_threads = 4, max_execution_time = 600;
