@@ -59,7 +59,7 @@ CREATE TABLE IF NOT EXISTS state_user_outcome_position (
     coin             LowCardinality(String) COMMENT '#<outcome_id*10 + side_index> per HL HIP-4 encoding',
     outcome_id       UInt64,
     side_index       UInt8 COMMENT '0 = first sideSpec, 1 = second sideSpec',
-    share_balance    Float64 COMMENT 'Net shares held on this leg. Negative is a data artifact (truncated history); filtered out by HAVING > 0 at write time',
+    share_balance    Float64 COMMENT 'Net shares held on this leg. Negative is a data artifact (truncated history) — filtered out by HAVING > 0 at write time',
     last_fill_time   DateTime('UTC') COMMENT 'Most recent fill timestamp that touched this leg',
     last_block_num   UInt64 COMMENT 'Block number of the most recent touching fill'
 ) ENGINE = ReplacingMergeTree(refresh_time)
