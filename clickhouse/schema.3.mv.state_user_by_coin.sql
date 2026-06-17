@@ -6,11 +6,26 @@
 --   * mv_refresh_state_user_by_coin_alltime — every 6h, interval_min = 0
 --
 -- Sources: `fills UNION ALL outcome_fills`. The two tables share the
--- template event schema; outcome rows arrive with `dex='outcome'` (from
--- the MATERIALIZED `dex_from_coin(coin)` on `outcome_fills`). Outcome-only
--- direction tags (SETTLEMENT, SPLIT/MERGE/NEGATE/MERGE_QUESTION) are
--- excluded from the aggregate by the WHERE filter — they describe
--- collateral movements rather than trades.
+-- template event schema. Outcome rows arrive with `dex='outcome'` (from
+-- the MATERIALIZED `dex_from_coin(coin)` on `outcome_fills`).
+--
+-- Direction handling (uniform across dexes):
+--   * SPLIT_OUTCOME / MERGE_OUTCOME / MERGE_QUESTION / NEGATE_OUTCOME
+--       — collateral reshapes, excluded outright by the outer WHERE.
+--       Carry no PnL, no fee, no notional volume.
+--   * SETTLEMENT
+--       — pnl-only: contributes to `realized_pnl` (the settlement payout
+--       is the realized portion for positions held to resolution) but is
+--       not a trade, so it does NOT count toward transactions / buys /
+--       sells / volume_*. Applies to both HIP-4 outcomes and delisted
+--       builder-deployed perp markets (e.g. `km:SMALL2000`) where HL
+--       emits SETTLEMENT to close out user positions to USDC.
+--   * everything else (BUY/SELL/OPEN_*/CLOSE_*/LIQUIDATED_*/etc.)
+--       — counted as trades. `first_trade`/`last_trade` use the row's
+--       fill_time directly. For a (user, coin) where the only retained
+--       activity is a SETTLEMENT, first_trade equals the settlement
+--       timestamp (honest — that is the user's only captured activity
+--       on the coin under our coverage window).
 --
 -- The sort key leads with `dex` so that both dex-scoped and coin-scoped
 -- filters get a fast path:
@@ -75,22 +90,21 @@ WITH
             f.coin                                           AS coin,
             f.dex                                            AS dex,
             f.user                                           AS user,
-            count()                                          AS transactions,
-            countIf(f.side = 'BID')                          AS buys,
-            countIf(f.side = 'ASK')                          AS sells,
-            sumIf(f.size * f.price, f.side = 'BID')          AS volume_bought,
-            sumIf(f.size * f.price, f.side = 'ASK')          AS volume_sold,
-            sum(f.size * f.price)                            AS total_volume,
-            sum(f.fee)                                       AS total_fees,
-            sum(f.closed_pnl_num)                            AS realized_pnl,
+            countIf(f.direction != 'SETTLEMENT')                          AS transactions,
+            countIf(f.direction != 'SETTLEMENT' AND f.side = 'BID')        AS buys,
+            countIf(f.direction != 'SETTLEMENT' AND f.side = 'ASK')        AS sells,
+            sumIf(f.size * f.price, f.direction != 'SETTLEMENT' AND f.side = 'BID')  AS volume_bought,
+            sumIf(f.size * f.price, f.direction != 'SETTLEMENT' AND f.side = 'ASK')  AS volume_sold,
+            sumIf(f.size * f.price, f.direction != 'SETTLEMENT')           AS total_volume,
+            sumIf(f.fee, f.direction != 'SETTLEMENT')                      AS total_fees,
+            sum(f.closed_pnl_num)                                          AS realized_pnl,
             countIf(f.direction LIKE 'LIQUIDATED_%' OR f.direction = 'AUTO_DELEVERAGING') AS liquidation_fills,
-            min(f.fill_time)                                 AS first_trade,
-            max(f.fill_time)                                 AS last_trade
+            min(f.fill_time)                                               AS first_trade,
+            max(f.fill_time)                                               AS last_trade
         FROM all_fills f
         CROSS JOIN time_periods tp
         WHERE f.fill_time >= tp.since
           AND f.direction NOT IN (
-              'SETTLEMENT',
               'SPLIT_OUTCOME', 'MERGE_OUTCOME', 'MERGE_QUESTION', 'NEGATE_OUTCOME'
           )
         GROUP BY tp.interval_min, f.coin, f.dex, f.user
@@ -144,20 +158,19 @@ WITH
             f.coin                                           AS coin,
             f.dex                                            AS dex,
             f.user                                           AS user,
-            count()                                          AS transactions,
-            countIf(f.side = 'BID')                          AS buys,
-            countIf(f.side = 'ASK')                          AS sells,
-            sumIf(f.size * f.price, f.side = 'BID')          AS volume_bought,
-            sumIf(f.size * f.price, f.side = 'ASK')          AS volume_sold,
-            sum(f.size * f.price)                            AS total_volume,
-            sum(f.fee)                                       AS total_fees,
-            sum(f.closed_pnl_num)                            AS realized_pnl,
+            countIf(f.direction != 'SETTLEMENT')                          AS transactions,
+            countIf(f.direction != 'SETTLEMENT' AND f.side = 'BID')        AS buys,
+            countIf(f.direction != 'SETTLEMENT' AND f.side = 'ASK')        AS sells,
+            sumIf(f.size * f.price, f.direction != 'SETTLEMENT' AND f.side = 'BID')  AS volume_bought,
+            sumIf(f.size * f.price, f.direction != 'SETTLEMENT' AND f.side = 'ASK')  AS volume_sold,
+            sumIf(f.size * f.price, f.direction != 'SETTLEMENT')           AS total_volume,
+            sumIf(f.fee, f.direction != 'SETTLEMENT')                      AS total_fees,
+            sum(f.closed_pnl_num)                                          AS realized_pnl,
             countIf(f.direction LIKE 'LIQUIDATED_%' OR f.direction = 'AUTO_DELEVERAGING') AS liquidation_fills,
-            min(f.fill_time)                                 AS first_trade,
-            max(f.fill_time)                                 AS last_trade
+            min(f.fill_time)                                               AS first_trade,
+            max(f.fill_time)                                               AS last_trade
         FROM all_fills f
         WHERE f.direction NOT IN (
-            'SETTLEMENT',
             'SPLIT_OUTCOME', 'MERGE_OUTCOME', 'MERGE_QUESTION', 'NEGATE_OUTCOME'
         )
         GROUP BY f.coin, f.dex, f.user
