@@ -431,7 +431,12 @@ message Fill {
 | `TRADING_DIRECTION_MERGE_QUESTION` | HIP-4 question merge: X Yes of every leg → X collateral (multi-outcome) |
 | `TRADING_DIRECTION_NEGATE_OUTCOME` | HIP-4 negate: X No of outcome A → X Yes of every sibling under same question |
 
-HIP-4 directions (`SPLIT_OUTCOME`, `MERGE_OUTCOME`, `MERGE_QUESTION`, `NEGATE_OUTCOME`) and `SETTLEMENT` are not real order-book trades — they are collateral conversions and resolution payouts. They are recorded in the `fills` table for completeness, but the `state_ohlcv_fills` and `state_user_by_coin` materialized views exclude them so OHLCV bars and per-user volume aggregates reflect actual market activity.
+HIP-4 collateral reshapes (`SPLIT_OUTCOME`, `MERGE_OUTCOME`, `MERGE_QUESTION`, `NEGATE_OUTCOME`) and `SETTLEMENT` are not real order-book trades. They are recorded in the `fills` / `outcome_fills` tables for completeness, but materialized views treat them differently:
+
+- `state_ohlcv_fills` excludes all five — OHLCV bars reflect taker market activity only.
+- `state_user_by_coin` excludes the four collateral reshapes outright (no PnL, no notional volume). `SETTLEMENT` contributes to `realized_pnl` (the resolution payout is the realized portion for positions held to resolution) but does NOT count toward `transactions` / `buys` / `sells` / `volume_*`. `first_trade` / `last_trade` use the row's `fill_time` directly — for a (user, coin) whose only retained activity in the window is a settlement, `first_trade` equals the settlement timestamp.
+
+This applies uniformly across dexes: HL emits `SETTLEMENT` on HIP-4 outcomes (resolution payouts) and on delisted builder-deployed perp markets (e.g. `km:SMALL2000`); both are treated as PnL-only.
 
 ### FillLiquidation
 
