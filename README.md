@@ -6,6 +6,20 @@ Substreams for indexing [Hypercore](https://www.hyperliquid.xyz/) blockchain dat
 
 This repository contains Substreams modules for extracting and processing Hypercore blockchain data, with support for ClickHouse as a sink database.
 
+## Fill stream
+
+`map_fills` returns a `pinax.hypercore.v1.Block` containing the original block
+header and fills, with the unrelated `events` list removed. Price, size, fee and
+liquidation mark values keep their original decimal strings; timestamps retain
+nanoseconds. Fill ordering, user identity and transaction provenance are preserved.
+
+Use this output when consumers need precise source values before applying their
+own normalization. It does not deduplicate counterparties, calculate USD prices,
+classify markets or select a trading universe. A user fill is not automatically a
+unique economic trade. Empty blocks retain their header and an empty fills list.
+
+The existing `db_out` output and ClickHouse schema are unchanged.
+
 ## Block Structure
 
 A Hypercore `Block` contains:

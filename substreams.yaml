@@ -28,6 +28,13 @@ binaries:
     file: ./target/wasm32-unknown-unknown/release/hypercore.wasm
 
 modules:
+  - name: map_fills
+    kind: map
+    inputs:
+      - source: pinax.hypercore.v1.Block
+    output:
+      type: proto:pinax.hypercore.v1.Block
+
   - name: db_out
     kind: map
     inputs:
