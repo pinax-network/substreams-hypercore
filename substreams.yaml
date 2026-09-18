@@ -7,9 +7,8 @@ package:
   image: ./image.png
 
 imports:
-  # SQL Sink Substreams
+  # DatabaseChanges output definitions. The ClickHouse sink owns its SQL import.
   database_changes: ./spkg/substreams-database-change-v2.0.0.spkg
-  sql: ./spkg/substreams-sink-sql-protodefs-v1.0.7.spkg
 
 protobuf:
   files:
@@ -28,6 +27,13 @@ binaries:
     file: ./target/wasm32-unknown-unknown/release/hypercore.wasm
 
 modules:
+  - name: map_fills
+    kind: map
+    inputs:
+      - source: pinax.hypercore.v1.Block
+    output:
+      type: proto:pinax.hypercore.v1.Block
+
   - name: db_out
     kind: map
     inputs:

@@ -22,6 +22,18 @@ pub fn set_numeric_field(
     row.set(field, parse_f64(value).to_string());
 }
 
+/// Fill-only source envelope. Preserve decimal strings, timestamps and all fill
+/// provenance; consumers choose their own pricing and aggregation semantics.
+#[substreams::handlers::map]
+pub fn map_fills(block: Block) -> Result<Block, Error> {
+    Ok(fills_only(block))
+}
+
+fn fills_only(mut block: Block) -> Block {
+    block.events.clear();
+    block
+}
+
 #[substreams::handlers::map]
 pub fn db_out(clock: Clock, block: Block) -> Result<DatabaseChanges, Error> {
     let mut tables = substreams_database_change::tables::Tables::new();
@@ -76,4 +88,60 @@ pub fn event_key(clock: &Clock, event_index: usize, hash: &[u8]) -> [(&'static s
         ("event_hash", format!("0x{}", Hex::encode(hash))),
         ("block_hash", format!("0x{}", &clock.id)),
     ]
+}
+
+#[cfg(test)]
+mod fill_stream_tests {
+    use super::*;
+    use crate::pb::pinax::hypercore::v1::{BlockHeader, Event, Fill, FillLiquidation};
+
+    #[test]
+    fn fill_output_preserves_precision_timestamps_and_liquidation_provenance() {
+        let fill = Fill {
+            coin: "xyz:TEST".into(),
+            price: "9007199254740993.123456789012345678".into(),
+            size: "0.000000000000000001".into(),
+            fee: "0.000000000000000000123".into(),
+            time: Some(prost_types::Timestamp {
+                seconds: 1_700_000_000,
+                nanos: 123_456_789,
+            }),
+            transaction_id: u64::MAX,
+            user: vec![1; 20],
+            hash: vec![2; 32],
+            liquidation: Some(FillLiquidation {
+                mark_px: "12.000000000000000001".into(),
+                ..Default::default()
+            }),
+            ..Default::default()
+        };
+        let block = Block {
+            block_header: Some(BlockHeader {
+                block_number: 42,
+                ..Default::default()
+            }),
+            fills: vec![fill.clone()],
+            events: vec![Event::default()],
+        };
+        let result = fills_only(block.clone());
+        assert_eq!(result.fills, vec![fill]);
+        assert_eq!(result.block_header, block.block_header);
+        assert!(result.events.is_empty());
+    }
+
+    #[test]
+    fn a_block_without_fills_keeps_its_header() {
+        let block = Block {
+            block_header: Some(BlockHeader {
+                block_number: 43,
+                ..Default::default()
+            }),
+            events: vec![Event::default()],
+            ..Default::default()
+        };
+        let result = fills_only(block.clone());
+        assert!(result.fills.is_empty());
+        assert!(result.events.is_empty());
+        assert_eq!(result.block_header, block.block_header);
+    }
 }
