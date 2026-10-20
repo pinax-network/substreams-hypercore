@@ -1,4 +1,4 @@
-ENDPOINT ?= hypercore-substreams-tier1-prod.kan-sst2.pinax.io:443
+ENDPOINT ?= hypercore.substreams.pinax.network:443
 START_BLOCK ?= 985000000
 STOP_BLOCK ?= 985001000
 PARALLEL_JOBS ?= 100
