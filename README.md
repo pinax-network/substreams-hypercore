@@ -515,3 +515,32 @@ substreams-sink-sql run \
 ## License
 
 Apache-2.0
+
+## Native fill extraction
+
+Rust consumers can use this crate with `default-features = false` and call
+`native::project(&block, max_fills)` on a decoded Firehose Hypercore block.
+Projection borrows every fill field verbatim: decimal strings, nanosecond timestamps,
+unknown enum values, liquidation metadata and original fill indexes are retained.
+There is no Substreams runtime, WASM execution, network access or price computation
+in this feature configuration. Bound input bytes/protobuf allocations before decode.
+Missing headers and fill-count overflow fail without returning a partial prefix.
+
+`native::classify` is shared with the legacy formatter: regular fills, liquidation
+fills and HIP-4 outcome fills remain distinct. Outcome classification takes
+precedence even if a fill carries liquidation metadata. Invalid outcome coin names
+retain their existing regular/liquidation classification. Decimal strings are not
+silently converted to floats or validated as prices by the native API.
+
+Default features retain `map_fills` and `db_out`. `database_changes(&clock, &block)`
+exposes the same current legacy formatter for host callers without invoking a
+Substreams host function; it deliberately retains the old floating-point conversion
+and field defaults. It still links Substreams types and is separate from the
+runtime-free native projection. Matching the current formatter does not prove
+parity with an older deployed package.
+
+The payload header lacks a block hash and parent hash: continuity, undo and source
+identity must come from the Firehose envelope. The existing scalar `twap_id` cannot
+represent absence separately from zero; schema synchronization remains tracked in
+[#49](https://github.com/pinax-network/substreams-hypercore/issues/49). This API does
+not qualify live delivery, change package versions, or add typed serving contracts.

@@ -7,36 +7,21 @@ use crate::{event_key, parse_f64, set_event_metadata, set_numeric_field};
 
 pub fn process_fills(tables: &mut Tables, clock: &Clock, block: &Block) {
     for (index, fill) in block.fills.iter().enumerate() {
-        // HIP-4 outcomes use `coin = '#' + (outcome_id * 10 + side)`. Route them
-        // to outcome_fills so perp/spot OHLCV MVs and leaderboards don't scan
-        // the (typically smaller, structurally distinct) outcome rows, and so
-        // outcome consumers don't pay the perp scan tax.
-        if let Some((outcome_id, side_index)) = parse_outcome_coin(&fill.coin) {
-            process_outcome_fill(tables, clock, index, fill, outcome_id, side_index);
-        } else if fill.liquidation.is_some() {
-            process_fill(tables, clock, index, fill, "fills_liquidation");
-        } else {
-            process_fill(tables, clock, index, fill, "fills");
+        match crate::native::classify(fill) {
+            crate::native::FillKind::Outcome {
+                outcome_id,
+                side_index,
+            } => process_outcome_fill(tables, clock, index, fill, outcome_id, side_index),
+            crate::native::FillKind::Liquidation => {
+                process_fill(tables, clock, index, fill, "fills_liquidation")
+            }
+            crate::native::FillKind::Regular => process_fill(tables, clock, index, fill, "fills"),
         }
     }
 }
 
-/// Parse the HIP-4 outcome coin encoding. HL emits outcomes on coins of the
-/// form `#<outcome_id * 10 + side>` where `side ∈ {0, 1}` indexes into the
-/// outcome's `sideSpecs` array. Returns `None` for non-outcome coins, empty
-/// suffix, non-numeric suffix, or out-of-range side.
-fn parse_outcome_coin(coin: &str) -> Option<(u64, u8)> {
-    let rest = coin.strip_prefix('#')?;
-    if rest.is_empty() || !rest.bytes().all(|b| b.is_ascii_digit()) {
-        return None;
-    }
-    let n: u64 = rest.parse().ok()?;
-    let side = (n % 10) as u8;
-    if side > 1 {
-        return None;
-    }
-    Some((n / 10, side))
-}
+#[cfg(test)]
+use crate::native::parse_outcome_coin;
 
 fn process_outcome_fill(
     tables: &mut Tables,
@@ -200,16 +185,40 @@ mod tests {
             (TradingDirection::CloseShort as i32, "CLOSE_SHORT"),
             (TradingDirection::LongToShort as i32, "LONG_TO_SHORT"),
             (TradingDirection::ShortToLong as i32, "SHORT_TO_LONG"),
-            (TradingDirection::SpotDustConversion as i32, "SPOT_DUST_CONVERSION"),
-            (TradingDirection::LiquidatedCrossLong as i32, "LIQUIDATED_CROSS_LONG"),
-            (TradingDirection::LiquidatedCrossShort as i32, "LIQUIDATED_CROSS_SHORT"),
-            (TradingDirection::LiquidatedIsolatedLong as i32, "LIQUIDATED_ISOLATED_LONG"),
-            (TradingDirection::LiquidatedIsolatedShort as i32, "LIQUIDATED_ISOLATED_SHORT"),
-            (TradingDirection::AutoDeleveraging as i32, "AUTO_DELEVERAGING"),
+            (
+                TradingDirection::SpotDustConversion as i32,
+                "SPOT_DUST_CONVERSION",
+            ),
+            (
+                TradingDirection::LiquidatedCrossLong as i32,
+                "LIQUIDATED_CROSS_LONG",
+            ),
+            (
+                TradingDirection::LiquidatedCrossShort as i32,
+                "LIQUIDATED_CROSS_SHORT",
+            ),
+            (
+                TradingDirection::LiquidatedIsolatedLong as i32,
+                "LIQUIDATED_ISOLATED_LONG",
+            ),
+            (
+                TradingDirection::LiquidatedIsolatedShort as i32,
+                "LIQUIDATED_ISOLATED_SHORT",
+            ),
+            (
+                TradingDirection::AutoDeleveraging as i32,
+                "AUTO_DELEVERAGING",
+            ),
             (TradingDirection::Settlement as i32, "SETTLEMENT"),
             (TradingDirection::NetChildVaults as i32, "NET_CHILD_VAULTS"),
-            (TradingDirection::BackstopBorrowLiquidation as i32, "BACKSTOP_BORROW_LIQUIDATION"),
-            (TradingDirection::PartialBorrowLiquidation as i32, "PARTIAL_BORROW_LIQUIDATION"),
+            (
+                TradingDirection::BackstopBorrowLiquidation as i32,
+                "BACKSTOP_BORROW_LIQUIDATION",
+            ),
+            (
+                TradingDirection::PartialBorrowLiquidation as i32,
+                "PARTIAL_BORROW_LIQUIDATION",
+            ),
             (TradingDirection::SplitOutcome as i32, "SPLIT_OUTCOME"),
             (TradingDirection::MergeOutcome as i32, "MERGE_OUTCOME"),
             (TradingDirection::MergeQuestion as i32, "MERGE_QUESTION"),
@@ -236,7 +245,10 @@ mod tests {
     fn fill_side_mapping() {
         assert_eq!(fill_side_to_string(FillSide::Ask as i32), "ASK");
         assert_eq!(fill_side_to_string(FillSide::Buy as i32), "BID");
-        assert_eq!(fill_side_to_string(FillSide::Unspecified as i32), "UNSPECIFIED");
+        assert_eq!(
+            fill_side_to_string(FillSide::Unspecified as i32),
+            "UNSPECIFIED"
+        );
         assert_eq!(fill_side_to_string(9999), "UNSPECIFIED");
     }
 
