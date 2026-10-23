@@ -8,11 +8,15 @@ license = "Apache-2.0"
 [lib]
 crate-type = ["cdylib", "rlib"]
 
+[features]
+default = ["substreams"]
+substreams = ["dep:substreams", "dep:substreams-abis", "dep:substreams-ethereum", "dep:substreams-database-change"]
+
 [dependencies]
-substreams = "0.7.0"
-substreams-abis = { git = "https://github.com/pinax-network/substreams-abis.git", rev = "65c72746864f1189fca7de488934ca8d945b5e76" }
-substreams-ethereum = "0.11.1"
-substreams-database-change = "3.0.0"
+substreams = { version = "0.7.0", optional = true }
+substreams-abis = { git = "https://github.com/pinax-network/substreams-abis.git", rev = "65c72746864f1189fca7de488934ca8d945b5e76", optional = true }
+substreams-ethereum = { version = "0.11.1", optional = true }
+substreams-database-change = { version = "3.0.0", optional = true }
 prost = "0.13"
 prost-types = "0.13"
 

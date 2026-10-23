@@ -1,0 +1,31 @@
+name: Native fills and WASM compatibility
+on:
+  pull_request:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: 1.93.0
+          components: rustfmt
+          targets: wasm32-unknown-unknown
+      - uses: Swatinem/rust-cache@v2
+      - name: Format native API and wrapper
+        run: rustfmt --edition 2021 --config skip_children=true --check src/lib.rs src/native.rs src/legacy.rs src/fills.rs
+      - run: cargo test --locked
+      - name: Test without Substreams runtime
+        run: |
+          cargo tree --locked --no-default-features --edges normal,build,dev > "$RUNNER_TEMP/native-deps.txt"
+          if grep -Eq '(^|[[:space:]])(substreams|substreams-database-change|substreams-ethereum) v' "$RUNNER_TEMP/native-deps.txt"; then
+            cat "$RUNNER_TEMP/native-deps.txt"
+            exit 1
+          fi
+          cargo test --locked --no-default-features
+      - run: cargo build --locked --target wasm32-unknown-unknown --release
