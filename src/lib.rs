@@ -1,4 +1,5 @@
 //! Shared Hypercore fill projection with optional Substreams wrappers.
+pub mod decode;
 #[cfg(feature = "substreams")]
 mod events;
 #[cfg(feature = "legacy-rows")]

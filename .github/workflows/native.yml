@@ -18,7 +18,7 @@ jobs:
           targets: wasm32-unknown-unknown
       - uses: Swatinem/rust-cache@v2
       - name: Format native API and wrapper
-        run: rustfmt --edition 2021 --config skip_children=true --check src/lib.rs src/native.rs src/legacy.rs src/fills.rs src/rows.rs src/rows/tests.rs src/rows/tests/legacy_v040.rs tests/support/legacy_wasm.rs
+        run: rustfmt --edition 2021 --config skip_children=true --check src/lib.rs src/native.rs src/legacy.rs src/fills.rs src/rows.rs src/rows/tests.rs src/rows/tests/legacy_v040.rs src/decode.rs src/decode/tests.rs tests/support/legacy_wasm.rs
       - run: cargo test --locked
       - name: Test without Substreams runtime
         run: |

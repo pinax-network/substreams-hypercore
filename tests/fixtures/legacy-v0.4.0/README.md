@@ -22,7 +22,8 @@ Cases cover regular, liquidation and outcome-first selection, all direction/side
 values plus unknowns, malformed outcome identifiers, missing values/times,
 nanosecond and invalid fill timestamps, large IDs, decimal precision, zero,
 negative/negative-zero, scientific notation, invalid numbers, NaN and infinity.
-All retained `fills` and `fills_liquidation` fields and row order match. Hidden
+All retained `fills` and `fills_liquidation` fields and row order match after the
+native bounded fill-only decoder and row formatter. Hidden
 database primary keys and field map order are not WebSocket contract checks;
 the current-wrapper test separately compares database keys and ordinals.
 

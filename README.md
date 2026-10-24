@@ -526,6 +526,18 @@ There is no Substreams runtime, WASM execution, network access or price computat
 in this feature configuration. Bound input bytes/protobuf allocations before decode.
 Missing headers and fill-count overflow fail without returning a partial prefix.
 
+`decode::fills(payload, limits)` supplies bounded, fill-only protobuf admission
+without any optional features. It uses the generated Prost header/fill decoder
+once, checks encoded bytes before parsing, and checks each fill count before
+decoding its body or growing the vector. This also limits empty-message
+amplification. Unrelated event bodies are skipped without allocating or decoding
+them; the result reports their count and has an empty `block.events`. Their inner
+protobuf is deliberately not validated. Never pass this result to non-fill
+projectors or call it a full-event decoder. Unknown fields follow the generated
+schema's Prost semantics, and unknown top-level fields are counted. Byte and
+fill-count limits bound admitted data and structures; they are not an RSS cap.
+Clock/hash/parent/time validation still belongs to the source adapter.
+
 `native::classify` is shared with the legacy formatter: regular fills, liquidation
 fills and HIP-4 outcome fills remain distinct. Outcome classification takes
 precedence even if a fill carries liquidation metadata. Invalid outcome coin names

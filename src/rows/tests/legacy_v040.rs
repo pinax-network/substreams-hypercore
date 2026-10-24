@@ -150,7 +150,10 @@ fn published_v040_fill_corpus() {
             .database(&clock.encode_to_vec(), &bytes)
             .expect("historical package must produce output");
         let legacy = retained(DatabaseChanges::decode(legacy_bytes.as_slice()).unwrap());
-        let projection = native::project(&block, 100_000).unwrap();
+        let admitted = crate::decode::fills(&bytes, crate::decode::Limits::default()).unwrap();
+        assert_eq!(admitted.block.fills, block.fills);
+        assert_eq!(admitted.block.block_header, block.block_header);
+        let projection = native::project(&admitted.block, 100_000).unwrap();
         let current = retained(fill_changes(&clock, &projection, Limits::default()).unwrap());
         assert_eq!(
             rows(&current),
