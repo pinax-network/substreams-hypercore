@@ -2,9 +2,37 @@
 use crate::{fills, native};
 use prost::Message;
 use std::fmt;
+#[cfg(not(target_arch = "wasm32"))]
+use substreams::buffa::Message as _;
 pub use substreams::pb::substreams::Clock;
 use substreams::Hex;
-use substreams_database_change::{pb::database::DatabaseChanges, tables::Tables};
+#[cfg(target_arch = "wasm32")]
+pub use substreams_database_change::pb::database::DatabaseChanges;
+#[cfg(not(target_arch = "wasm32"))]
+pub use substreams_database_change::pb::sf::substreams::sink::database::v1::DatabaseChanges;
+use substreams_database_change::tables::Tables;
+
+fn clock_time(clock: &Clock) -> Option<(i64, i32)> {
+    #[cfg(target_arch = "wasm32")]
+    let time = clock.timestamp.as_ref();
+    #[cfg(not(target_arch = "wasm32"))]
+    let time = clock.timestamp.as_option();
+    time.map(|time| (time.seconds, time.nanos))
+}
+
+fn encoded_size(changes: &DatabaseChanges) -> Result<usize, FormatError> {
+    #[cfg(target_arch = "wasm32")]
+    {
+        Ok(changes.encoded_len())
+    }
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        changes
+            .try_encoded_len()
+            .map(|size| size as usize)
+            .map_err(|_| FormatError::Capacity)
+    }
+}
 
 #[derive(Clone, Copy, Debug)]
 pub struct Limits {
@@ -59,15 +87,15 @@ pub fn fill_changes(
         .block_time
         .as_ref()
         .ok_or(FormatError::Identity)?;
-    let clock_time = clock.timestamp.as_ref().ok_or(FormatError::Identity)?;
+    let clock_time = clock_time(clock).ok_or(FormatError::Identity)?;
     if clock.number != projection.header.block_number
         || clock.id.is_empty()
         || clock.id.len() > 256
         || clock.id.chars().any(char::is_control)
         || !(0..=253_402_300_799).contains(&time.seconds)
         || !(0..1_000_000_000).contains(&time.nanos)
-        || clock_time.seconds != time.seconds
-        || clock_time.nanos != time.nanos
+        || clock_time.0 != time.seconds
+        || clock_time.1 != time.nanos
     {
         return Err(FormatError::Identity);
     }
@@ -86,7 +114,7 @@ pub fn fill_changes(
         fills::process_projected_fill(&mut tables, clock, row.index as usize, row.fill, row.kind);
     }
     let changes = tables.to_database_changes();
-    if changes.encoded_len() > limits.max_bytes {
+    if encoded_size(&changes)? > limits.max_bytes {
         return Err(FormatError::Capacity);
     }
     Ok(changes)
@@ -108,7 +136,7 @@ pub fn set_numeric_field(
 pub fn set_clock(clock: &Clock, row: &mut substreams_database_change::tables::Row) {
     row.set("block_num", clock.number);
     row.set("block_hash", format!("0x{}", clock.id));
-    let seconds = clock.timestamp.as_ref().map(|t| t.seconds).unwrap_or(0);
+    let seconds = clock_time(clock).map(|time| time.0).unwrap_or(0);
     row.set("timestamp", seconds);
 }
 
@@ -126,11 +154,7 @@ pub fn set_event_metadata(
 }
 
 pub fn event_key(clock: &Clock, event_index: usize, hash: &[u8]) -> [(&'static str, String); 5] {
-    let seconds = clock
-        .timestamp
-        .as_ref()
-        .map(|t| t.seconds)
-        .unwrap_or_default();
+    let seconds = clock_time(clock).map(|time| time.0).unwrap_or_default();
     [
         ("timestamp", seconds.to_string()),
         ("block_num", clock.number.to_string()),

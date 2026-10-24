@@ -128,7 +128,7 @@ fn rows(changes: &DatabaseChanges) -> Vec<BTreeMap<String, String>> {
             let mut values: BTreeMap<_, _> = row
                 .fields
                 .iter()
-                .map(|f| (f.name.clone(), f.new_value.clone()))
+                .map(|f| (f.name.clone(), f.value.clone()))
                 .collect();
             values.insert("@table".into(), row.table.clone());
             values
@@ -149,7 +149,7 @@ fn published_v040_fill_corpus() {
         let legacy_bytes = oracle
             .database(&clock.encode_to_vec(), &bytes)
             .expect("historical package must produce output");
-        let legacy = retained(DatabaseChanges::decode(legacy_bytes.as_slice()).unwrap());
+        let legacy = retained(DatabaseChanges::decode_from_slice(legacy_bytes.as_slice()).unwrap());
         let admitted = crate::decode::fills(&bytes, crate::decode::Limits::default()).unwrap();
         assert_eq!(admitted.block.fills, block.fills);
         assert_eq!(admitted.block.block_header, block.block_header);

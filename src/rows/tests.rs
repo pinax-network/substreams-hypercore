@@ -9,11 +9,13 @@ fn source() -> (Clock, Block) {
         seconds: 1_700_000_000,
         nanos: 123_456_789,
     };
-    let clock = Clock {
+    let mut clock = Clock {
         id: "42".into(),
         number: 42,
-        timestamp: Some(time.clone()),
+        ..Default::default()
     };
+    clock.timestamp.get_or_insert_default().seconds = time.seconds;
+    clock.timestamp.get_or_insert_default().nanos = time.nanos;
     let regular = Fill {
         user: vec![1; 20],
         coin: "BTC".into(),
@@ -75,7 +77,7 @@ fn fields(changes: &DatabaseChanges, index: usize) -> BTreeMap<String, String> {
     changes.table_changes[index]
         .fields
         .iter()
-        .map(|field| (field.name.clone(), field.new_value.clone()))
+        .map(|field| (field.name.clone(), field.value.clone()))
         .collect()
 }
 
@@ -128,9 +130,8 @@ fn keeps_source_order_selection_values_and_defaults_without_traversing_events() 
 fn checks_identity_and_exact_complete_output_capacity() {
     let (clock, block) = source();
     let projection = native::project(&block, 4).unwrap();
-    let size = fill_changes(&clock, &projection, Limits::default())
-        .unwrap()
-        .encoded_len();
+    let size =
+        encoded_size(&fill_changes(&clock, &projection, Limits::default()).unwrap()).unwrap();
     let exact = Limits {
         max_fills: 4,
         max_bytes: size,
@@ -172,6 +173,8 @@ fn checks_identity_and_exact_complete_output_capacity() {
         .unwrap_err(),
         FormatError::InvalidBounds
     );
+    let mut wrong_time = clock.clone();
+    wrong_time.timestamp.get_or_insert_default().nanos = 0;
     for wrong in [
         Clock {
             number: 43,
@@ -182,16 +185,10 @@ fn checks_identity_and_exact_complete_output_capacity() {
             ..clock.clone()
         },
         Clock {
-            timestamp: None,
+            timestamp: Default::default(),
             ..clock.clone()
         },
-        Clock {
-            timestamp: Some(prost_types::Timestamp {
-                seconds: 1_700_000_000,
-                nanos: 0,
-            }),
-            ..clock.clone()
-        },
+        wrong_time,
     ] {
         assert_eq!(
             fill_changes(&wrong, &projection, exact).unwrap_err(),

@@ -35,5 +35,11 @@ jobs:
             cat "$RUNNER_TEMP/rows-deps.txt"
             exit 1
           fi
+          # Host consumers must not link the old SDK's allocator exports beside
+          # the current SDK used by other native chain decoders.
+          if grep -Eq '(^|[[:space:]])substreams v0\.7|(^|[[:space:]])substreams-database-change v3\.' "$RUNNER_TEMP/rows-deps.txt"; then
+            cat "$RUNNER_TEMP/rows-deps.txt"
+            exit 1
+          fi
           cargo test --locked --no-default-features --features legacy-rows
       - run: cargo build --locked --target wasm32-unknown-unknown --release

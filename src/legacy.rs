@@ -1,13 +1,13 @@
 use crate::pb::pinax::hypercore::v1::Block;
+use crate::rows::DatabaseChanges;
 use crate::set_clock;
 use crate::{events, fills, ledger_updates};
 use substreams::errors::Error;
 use substreams::pb::substreams::Clock;
-use substreams_database_change::pb::database::DatabaseChanges;
 
 /// Fill-only source envelope. Preserve decimal strings, timestamps and all fill
 /// provenance; consumers choose their own pricing and aggregation semantics.
-#[substreams::handlers::map]
+#[cfg_attr(target_arch = "wasm32", substreams::handlers::map)]
 pub fn map_fills(block: Block) -> Result<Block, Error> {
     Ok(fills_only(block))
 }
@@ -17,7 +17,7 @@ fn fills_only(mut block: Block) -> Block {
     block
 }
 
-#[substreams::handlers::map]
+#[cfg_attr(target_arch = "wasm32", substreams::handlers::map)]
 pub fn db_out(clock: Clock, block: Block) -> Result<DatabaseChanges, Error> {
     let changes = database_changes(&clock, &block);
     substreams::log::info!("Total rows {}", changes.table_changes.len());
@@ -39,7 +39,7 @@ pub fn database_changes(clock: &Clock, block: &Block) -> DatabaseChanges {
     ledger_updates::process_ledger_updates(&mut tables, clock, block);
 
     // ONLY include blocks if events are present
-    if !tables.tables.is_empty() {
+    if tables.all_row_count() > 0 {
         set_clock(
             clock,
             tables.create_row("blocks", [("block_num", clock.number.to_string())]),
@@ -106,7 +106,7 @@ mod fill_stream_tests {
                 .iter()
                 .find(|field| field.name == "price")
                 .unwrap()
-                .new_value,
+                .value,
             "0"
         );
         let native = crate::native::project(&block, 3).unwrap();

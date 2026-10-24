@@ -544,7 +544,13 @@ precedence even if a fill carries liquidation metadata. Invalid outcome coin nam
 retain their existing regular/liquidation classification. Decimal strings are not
 silently converted to floats or validated as prices by the native API.
 
-Default features retain `map_fills` and `db_out`. `database_changes(&clock, &block)`
+Default features retain the `map_fills` and `db_out` WASM entrypoints. The WASM
+target keeps Substreams 0.7 and DatabaseChanges 3; native targets use Substreams
+0.8 and DatabaseChanges 5 to coexist with other native chain decoders without
+duplicate SDK allocator symbols. Payload bindings remain Prost 0.13 on both
+targets. Clock/row Rust types follow the target's SDK; retained create-row wire
+fields and normalized values are checked against the historical WASM corpus.
+ `database_changes(&clock, &block)`
 exposes the same current legacy formatter for host callers without invoking a
 Substreams host function; it deliberately retains the old floating-point conversion
 and field defaults. It still links Substreams types and is separate from the
