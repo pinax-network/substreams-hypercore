@@ -1,22 +1,9 @@
 use crate::pb::pinax::hypercore::v1::Block;
+use crate::set_clock;
 use crate::{events, fills, ledger_updates};
 use substreams::errors::Error;
 use substreams::pb::substreams::Clock;
-use substreams::Hex;
 use substreams_database_change::pb::database::DatabaseChanges;
-
-/// Parse a string value to f64, returning 0.0 if parsing fails
-pub fn parse_f64(value: &str) -> f64 {
-    value.parse().unwrap_or(0.0)
-}
-
-pub fn set_numeric_field(
-    row: &mut substreams_database_change::tables::Row,
-    field: &str,
-    value: &str,
-) {
-    row.set(field, parse_f64(value).to_string());
-}
 
 /// Fill-only source envelope. Preserve decimal strings, timestamps and all fill
 /// provenance; consumers choose their own pricing and aggregation semantics.
@@ -60,41 +47,6 @@ pub fn database_changes(clock: &Clock, block: &Block) -> DatabaseChanges {
     }
 
     tables.to_database_changes()
-}
-
-pub fn set_clock(clock: &Clock, row: &mut substreams_database_change::tables::Row) {
-    row.set("block_num", clock.number);
-    row.set("block_hash", format!("0x{}", clock.id));
-    let seconds = clock.timestamp.as_ref().map(|t| t.seconds).unwrap_or(0);
-    row.set("timestamp", seconds);
-}
-
-pub fn set_event_metadata(
-    clock: &Clock,
-    event_index: usize,
-    hash: &[u8],
-    time: Option<&prost_types::Timestamp>,
-    row: &mut substreams_database_change::tables::Row,
-) {
-    set_clock(clock, row);
-    row.set("event_index", event_index as u32);
-    row.set("event_hash", format!("0x{}", Hex::encode(hash)));
-    row.set("event_time", time.map(|t| t.seconds).unwrap_or(0));
-}
-
-pub fn event_key(clock: &Clock, event_index: usize, hash: &[u8]) -> [(&'static str, String); 5] {
-    let seconds = clock
-        .timestamp
-        .as_ref()
-        .map(|t| t.seconds)
-        .unwrap_or_default();
-    [
-        ("timestamp", seconds.to_string()),
-        ("block_num", clock.number.to_string()),
-        ("event_index", event_index.to_string()),
-        ("event_hash", format!("0x{}", Hex::encode(hash))),
-        ("block_hash", format!("0x{}", &clock.id)),
-    ]
 }
 
 #[cfg(test)]

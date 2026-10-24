@@ -539,6 +539,22 @@ and field defaults. It still links Substreams types and is separate from the
 runtime-free native projection. Matching the current formatter does not prove
 parity with an older deployed package.
 
+For fill-only legacy adapters, enable `legacy-rows` with default features disabled
+and call `rows::fill_changes(&clock, &projection, limits)`. It reuses the same row
+formatter over an existing `native::Projection`, without cloning or decoding the
+block, traversing unrelated events, or invoking map handlers. It checks clock
+number/time agreement, fill count, combined encoded fill size and encoded output
+size. These are admission bounds, not a peak-memory guarantee. It retains
+`fills`, `fills_liquidation` and `outcome_fills`, including outcome-first selection,
+original indexes, floating-point conversion and field defaults. It omits the
+extra `blocks` row. Consumers explicitly select their retained tables.
+
+The [25-case historical corpus](tests/fixtures/legacy-v0.4.0/README.md) executes
+the exact released v0.4.0 WASM and matches retained fill/liquidation row fields and
+order. It is an offline package gate, separate from provider and serving parity.
+The interpreter is a test dependency only; `legacy-rows` uses Substreams protobuf
+and row types but includes no map handlers, ABI package or EVM decoder dependency.
+
 The payload header lacks a block hash and parent hash: continuity, undo and source
 identity must come from the Firehose envelope. The existing scalar `twap_id` cannot
 represent absence separately from zero; schema synchronization remains tracked in

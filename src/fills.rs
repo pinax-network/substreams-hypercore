@@ -1,22 +1,35 @@
-use crate::pb::pinax::hypercore::v1::{Block, Fill, FillSide, TradingDirection};
+#[cfg(feature = "substreams")]
+use crate::pb::pinax::hypercore::v1::Block;
+use crate::pb::pinax::hypercore::v1::{Fill, FillSide, TradingDirection};
 use substreams::pb::substreams::Clock;
 use substreams::Hex;
 use substreams_database_change::tables::Tables;
 
 use crate::{event_key, parse_f64, set_event_metadata, set_numeric_field};
 
+#[cfg(feature = "substreams")]
 pub fn process_fills(tables: &mut Tables, clock: &Clock, block: &Block) {
     for (index, fill) in block.fills.iter().enumerate() {
-        match crate::native::classify(fill) {
-            crate::native::FillKind::Outcome {
-                outcome_id,
-                side_index,
-            } => process_outcome_fill(tables, clock, index, fill, outcome_id, side_index),
-            crate::native::FillKind::Liquidation => {
-                process_fill(tables, clock, index, fill, "fills_liquidation")
-            }
-            crate::native::FillKind::Regular => process_fill(tables, clock, index, fill, "fills"),
+        process_projected_fill(tables, clock, index, fill, crate::native::classify(fill));
+    }
+}
+
+pub(crate) fn process_projected_fill(
+    tables: &mut Tables,
+    clock: &Clock,
+    index: usize,
+    fill: &Fill,
+    kind: crate::native::FillKind,
+) {
+    match kind {
+        crate::native::FillKind::Outcome {
+            outcome_id,
+            side_index,
+        } => process_outcome_fill(tables, clock, index, fill, outcome_id, side_index),
+        crate::native::FillKind::Liquidation => {
+            process_fill(tables, clock, index, fill, "fills_liquidation")
         }
+        crate::native::FillKind::Regular => process_fill(tables, clock, index, fill, "fills"),
     }
 }
 
