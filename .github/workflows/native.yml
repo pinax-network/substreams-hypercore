@@ -14,11 +14,17 @@ jobs:
       - uses: dtolnay/rust-toolchain@master
         with:
           toolchain: 1.93.0
-          components: rustfmt
+          components: rustfmt, clippy
           targets: wasm32-unknown-unknown
       - uses: Swatinem/rust-cache@v2
       - name: Format native API and wrapper
-        run: rustfmt --edition 2021 --config skip_children=true --check src/lib.rs src/native.rs src/legacy.rs src/fills.rs
+        run: rustfmt --edition 2021 --config skip_children=true --check src/lib.rs src/native.rs src/legacy.rs src/fills.rs src/rows.rs src/rows/tests.rs src/rows/tests/legacy_v040.rs src/decode.rs src/decode/tests.rs tests/support/legacy_wasm.rs
+      - name: Clippy
+        run: |
+          cargo clippy --locked --all-targets -- -D warnings
+          cargo clippy --locked --all-targets --no-default-features -- -D warnings
+          cargo clippy --locked --all-targets --no-default-features --features legacy-rows -- -D warnings
+          cargo clippy --locked --target wasm32-unknown-unknown -- -D warnings
       - run: cargo test --locked
       - name: Test without Substreams runtime
         run: |
@@ -28,4 +34,18 @@ jobs:
             exit 1
           fi
           cargo test --locked --no-default-features
+      - name: Test native legacy formatting without map handlers
+        run: |
+          cargo tree --locked --no-default-features --features legacy-rows --edges normal,build > "$RUNNER_TEMP/rows-deps.txt"
+          if grep -Eq '(^|[[:space:]])(substreams-abis|substreams-ethereum|wasmi|wasmparser) v' "$RUNNER_TEMP/rows-deps.txt"; then
+            cat "$RUNNER_TEMP/rows-deps.txt"
+            exit 1
+          fi
+          # Host consumers must not link the old SDK's allocator exports beside
+          # the current SDK used by other native chain decoders.
+          if grep -Eq '(^|[[:space:]])substreams v0\.7|(^|[[:space:]])substreams-database-change v3\.' "$RUNNER_TEMP/rows-deps.txt"; then
+            cat "$RUNNER_TEMP/rows-deps.txt"
+            exit 1
+          fi
+          cargo test --locked --no-default-features --features legacy-rows
       - run: cargo build --locked --target wasm32-unknown-unknown --release

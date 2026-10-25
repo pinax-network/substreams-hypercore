@@ -526,18 +526,74 @@ There is no Substreams runtime, WASM execution, network access or price computat
 in this feature configuration. Bound input bytes/protobuf allocations before decode.
 Missing headers and fill-count overflow fail without returning a partial prefix.
 
+`decode::fills(payload, limits)` supplies bounded, fill-only protobuf admission
+without any optional features. It uses the generated Prost header/fill decoder
+once, checks encoded bytes before parsing, and checks each fill count before
+decoding its body or growing the vector. This also limits empty-message
+amplification. Unrelated event bodies are skipped without allocating or decoding
+them; the result reports their count and has an empty `block.events`. Their inner
+protobuf is deliberately not validated. Never pass this result to non-fill
+projectors or call it a full-event decoder. Unknown fields follow the generated
+schema's Prost semantics, and unknown top-level fields are counted. Byte and
+fill-count limits bound admitted data and structures; they are not an RSS cap.
+Clock/hash/parent/time validation still belongs to the source adapter.
+
 `native::classify` is shared with the legacy formatter: regular fills, liquidation
 fills and HIP-4 outcome fills remain distinct. Outcome classification takes
 precedence even if a fill carries liquidation metadata. Invalid outcome coin names
 retain their existing regular/liquidation classification. Decimal strings are not
 silently converted to floats or validated as prices by the native API.
 
-Default features retain `map_fills` and `db_out`. `database_changes(&clock, &block)`
+Default features retain the `map_fills` and `db_out` WASM entrypoints. The WASM
+target keeps Substreams 0.7 and DatabaseChanges 3; native targets use Substreams
+0.8 and DatabaseChanges 5 to coexist with other native chain decoders without
+duplicate SDK allocator symbols. Payload bindings remain Prost 0.13 on both
+targets. Clock/row Rust types follow the target's SDK; retained create-row wire
+fields and normalized values are checked against the historical WASM corpus.
+ `database_changes(&clock, &block)`
 exposes the same current legacy formatter for host callers without invoking a
 Substreams host function; it deliberately retains the old floating-point conversion
 and field defaults. It still links Substreams types and is separate from the
 runtime-free native projection. Matching the current formatter does not prove
 parity with an older deployed package.
+
+For fill-only legacy adapters, enable `legacy-rows` with default features disabled
+and call `rows::fill_changes(&clock, &projection, limits)`. It reuses the same row
+formatter over an existing `native::Projection`, without cloning or decoding the
+block, traversing unrelated events, or invoking map handlers. It checks clock
+number/time agreement, fill count, total encoded fill size and encoded output
+size; `max_bytes` bounds the input and the output separately. These are admission
+bounds, not a peak-memory guarantee. It retains `fills`, `fills_liquidation` and
+`outcome_fills`, including outcome-first selection, original indexes,
+floating-point conversion and field defaults. It omits the extra `blocks` row.
+Consumers explicitly select their retained tables.
+
+The output size is checked only after the complete `DatabaseChanges` is built, so
+a block rejected for output size has already reached its peak. Measured peak RSS
+for one block through `decode::fills`, `native::project` and `rows::fill_changes`,
+including the payload buffer (release build, rustc 1.93.0, macOS arm64 with the
+system allocator, `/usr/bin/time -l`, three runs each):
+
+| Block | Limits | Payload | Result | Peak RSS |
+|---|---|---|---|---|
+| 61,378 typical fills of 232 bytes, the most the output limit fits | default | 14.2 MB | accepted, 67,108,798-byte output | 515 MiB |
+| 65,536 empty fills | default | 0.13 MB | accepted, 49.4 MB output | 496 MiB |
+| 65,536 fills padded to the payload limit | default | 33.5 MB | `Capacity` after formatting | 652 MiB |
+| 100,000 fills padded to the payload limit | hard caps | 67.1 MB | `Capacity` after formatting | 1,088 MiB |
+
+Default limits are 32 MiB / 65,536 fills for `decode::fills` and 64 MiB / 65,536
+fills for `rows::fill_changes`; 64 MiB / 100,000 are the hard caps. Peak grows
+mostly with fill count (about 7.7 KiB per fill, even for empty fills). Padded fills
+carry long hashes, which each row repeats hex-encoded in a field and its primary
+key. Each run took 0.5 to 1.3 s. Other allocators and platforms differ, and callers
+that re-encode or normalize the rows hold further copies.
+
+The [25-case historical corpus](tests/fixtures/legacy-v0.4.0/README.md) executes
+the exact released v0.4.0 WASM and matches retained fill/liquidation row fields,
+order, primary keys, ordinals and operations. It lists the intentional error-path
+differences. It is an offline package gate, separate from provider and serving parity.
+The interpreter is a test dependency only; `legacy-rows` uses Substreams protobuf
+and row types but includes no map handlers, ABI package or EVM decoder dependency.
 
 The payload header lacks a block hash and parent hash: continuity, undo and source
 identity must come from the Firehose envelope. The existing scalar `twap_id` cannot
