@@ -37,8 +37,9 @@ fn encoded_size(changes: &DatabaseChanges) -> Result<usize, FormatError> {
 #[derive(Clone, Copy, Debug)]
 pub struct Limits {
     pub max_fills: usize,
-    /// Combined encoded input fill size and final DatabaseChanges size.
-    /// Not a peak allocation or process-memory guarantee.
+    /// Bounds the total encoded input fill size and, separately, the final
+    /// DatabaseChanges size. Not a peak allocation or process-memory guarantee:
+    /// output is checked after it is built (measured peaks are in the README).
     pub max_bytes: usize,
 }
 impl Default for Limits {

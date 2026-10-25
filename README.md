@@ -561,11 +561,32 @@ For fill-only legacy adapters, enable `legacy-rows` with default features disabl
 and call `rows::fill_changes(&clock, &projection, limits)`. It reuses the same row
 formatter over an existing `native::Projection`, without cloning or decoding the
 block, traversing unrelated events, or invoking map handlers. It checks clock
-number/time agreement, fill count, combined encoded fill size and encoded output
-size. These are admission bounds, not a peak-memory guarantee. It retains
-`fills`, `fills_liquidation` and `outcome_fills`, including outcome-first selection,
-original indexes, floating-point conversion and field defaults. It omits the
-extra `blocks` row. Consumers explicitly select their retained tables.
+number/time agreement, fill count, total encoded fill size and encoded output
+size; `max_bytes` bounds the input and the output separately. These are admission
+bounds, not a peak-memory guarantee. It retains `fills`, `fills_liquidation` and
+`outcome_fills`, including outcome-first selection, original indexes,
+floating-point conversion and field defaults. It omits the extra `blocks` row.
+Consumers explicitly select their retained tables.
+
+The output size is checked only after the complete `DatabaseChanges` is built, so
+a block rejected for output size has already reached its peak. Measured peak RSS
+for one block through `decode::fills`, `native::project` and `rows::fill_changes`,
+including the payload buffer (release build, rustc 1.93.0, macOS arm64 with the
+system allocator, `/usr/bin/time -l`, three runs each):
+
+| Block | Limits | Payload | Result | Peak RSS |
+|---|---|---|---|---|
+| 61,378 typical fills of 232 bytes, the most the output limit fits | default | 14.2 MB | accepted, 67,108,798-byte output | 515 MiB |
+| 65,536 empty fills | default | 0.13 MB | accepted, 49.4 MB output | 496 MiB |
+| 65,536 fills padded to the payload limit | default | 33.5 MB | `Capacity` after formatting | 652 MiB |
+| 100,000 fills padded to the payload limit | hard caps | 67.1 MB | `Capacity` after formatting | 1,088 MiB |
+
+Default limits are 32 MiB / 65,536 fills for `decode::fills` and 64 MiB / 65,536
+fills for `rows::fill_changes`; 64 MiB / 100,000 are the hard caps. Peak grows
+mostly with fill count (about 7.7 KiB per fill, even for empty fills). Padded fills
+carry long hashes, which each row repeats hex-encoded in a field and its primary
+key. Each run took 0.5 to 1.3 s. Other allocators and platforms differ, and callers
+that re-encode or normalize the rows hold further copies.
 
 The [25-case historical corpus](tests/fixtures/legacy-v0.4.0/README.md) executes
 the exact released v0.4.0 WASM and matches retained fill/liquidation row fields,
