@@ -22,7 +22,7 @@ fn source() -> (Clock, Block) {
         price: "9007199254740993.123456789".into(),
         size: "0.000000000000000001".into(),
         side: 2,
-        time: Some(time.clone()),
+        time: Some(time),
         start_position: "-3.000000000000001".into(),
         direction: 3,
         closed_pnl: "invalid".into(),

@@ -160,7 +160,7 @@ pub fn event_key(clock: &Clock, event_index: usize, hash: &[u8]) -> [(&'static s
         ("block_num", clock.number.to_string()),
         ("event_index", event_index.to_string()),
         ("event_hash", format!("0x{}", Hex::encode(hash))),
-        ("block_hash", format!("0x{}", &clock.id)),
+        ("block_hash", format!("0x{}", clock.id)),
     ]
 }
 
