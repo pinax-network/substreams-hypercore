@@ -22,10 +22,30 @@ Cases cover regular, liquidation and outcome-first selection, all direction/side
 values plus unknowns, malformed outcome identifiers, missing values/times,
 nanosecond and invalid fill timestamps, large IDs, decimal precision, zero,
 negative/negative-zero, scientific notation, invalid numbers, NaN and infinity.
-All retained `fills` and `fills_liquidation` fields and row order match after the
-native bounded fill-only decoder and row formatter. Hidden
-database primary keys and field map order are not WebSocket contract checks;
-the current-wrapper test separately compares database keys and ordinals.
+All retained `fills` and `fills_liquidation` fields, row order, primary keys,
+ordinals and operations match the decoded historical output after the native
+bounded fill-only decoder and row formatter. Field order within a row is not
+compared. Field `update_op` is not compared either: DatabaseChanges 3 output has
+none, and sinks ignore it for created rows.
+
+### Intentional error-path differences
+
+The corpus pins only blocks both paths accept. These inputs differ on purpose and
+are not in the corpus:
+
+- **Malformed event body** (valid framing, invalid inner protobuf): v0.4.0 decodes
+  every event, so it panics and outputs nothing. `decode::fills` skips event
+  bodies within their framing without validating them, counts them in
+  `skipped_event_messages` and emits the fill rows.
+- **Header without `block_time`:** v0.4.0 emits rows from the clock alone.
+  `rows::fill_changes` returns `FormatError::Identity`.
+- **No header:** v0.4.0 emits rows from the clock alone. `decode::fills` returns
+  `Error::MissingHeader`.
+- **Unknown top-level field:** both emit the same rows. `decode::fills` also
+  reports `skipped_unknown_fields = 1`.
+
+firehose-hypercore 271cd47 always emits a header and sets `block_time` before it
+emits a block, so the header cases are not expected from the provider.
 
 The legacy formatter's floating-point conversion and invalid-number defaults
 are intentionally preserved. Exact native observations remain separate. Outcome

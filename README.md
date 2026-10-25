@@ -568,8 +568,9 @@ original indexes, floating-point conversion and field defaults. It omits the
 extra `blocks` row. Consumers explicitly select their retained tables.
 
 The [25-case historical corpus](tests/fixtures/legacy-v0.4.0/README.md) executes
-the exact released v0.4.0 WASM and matches retained fill/liquidation row fields and
-order. It is an offline package gate, separate from provider and serving parity.
+the exact released v0.4.0 WASM and matches retained fill/liquidation row fields,
+order, primary keys, ordinals and operations. It lists the intentional error-path
+differences. It is an offline package gate, separate from provider and serving parity.
 The interpreter is a test dependency only; `legacy-rows` uses Substreams protobuf
 and row types but includes no map handlers, ABI package or EVM decoder dependency.
 

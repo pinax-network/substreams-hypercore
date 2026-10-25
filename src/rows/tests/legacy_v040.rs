@@ -115,8 +115,15 @@ fn retained(mut changes: DatabaseChanges) -> DatabaseChanges {
         .table_changes
         .retain(|row| matches!(row.table.as_str(), "fills" | "fills_liquidation"));
     for row in &mut changes.table_changes {
-        row.primary_key = None;
         row.fields.sort_by(|a, b| a.name.cmp(&b.name));
+    }
+    changes
+}
+/// Fields are compared by `rows`; DatabaseChanges 3 output has no `update_op`.
+fn keys(changes: &DatabaseChanges) -> DatabaseChanges {
+    let mut changes = changes.clone();
+    for row in &mut changes.table_changes {
+        row.fields.clear();
     }
     changes
 }
@@ -159,6 +166,11 @@ fn published_v040_fill_corpus() {
             rows(&current),
             rows(&legacy),
             "{name}: unclassified historical row difference"
+        );
+        assert_eq!(
+            keys(&current),
+            keys(&legacy),
+            "{name}: historical primary key, ordinal or operation difference"
         );
         corpus.push(json!({"name":name,"block_hex":hex(&bytes),"block_sha256":format!("{:x}",Sha256::digest(&bytes)),
             "oracle_database_changes_hex":hex(&legacy_bytes),"rows":rows(&legacy)}));
